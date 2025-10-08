@@ -1,0 +1,55 @@
+employeeId,employeeName,employeeEmail,field,currentValue,newValue,status,reason
+"cmgehgcx30022z9yv6qf1cifm","Varune Ramrattan","vramrattan@costaatt.edu.tt","department","Academic Affairs","Technology Services","ERROR","Error applying fix: 
+Invalid `prisma.user.update()` invocation in
+/Users/darrenheadley/.cursor/COSTAATT Project/HR/apps/api/scripts/fixDepartmentsFromList.ts:389:29
+
+  386   where: { id: fix.employeeId },
+  387   data: { dept: fix.newValue }
+  388 });
+→ 389 await prisma.user.update(
+An operation failed because it depends on one or more records that were required but not found. No record was found for an update."
+"cmgehgcx30022z9yv6qf1cifm","Varune Ramrattan","vramrattan@costaatt.edu.tt","jobTitle","Dean Academic Affairs","IT Support Specialist","ERROR","Error applying fix: 
+Invalid `prisma.user.update()` invocation in
+/Users/darrenheadley/.cursor/COSTAATT Project/HR/apps/api/scripts/fixDepartmentsFromList.ts:394:29
+
+  391     data: { dept: fix.newValue }
+  392   });
+  393 } else if (fix.field === 'jobTitle') {
+→ 394   await prisma.user.update(
+An operation failed because it depends on one or more records that were required but not found. No record was found for an update."
+"cmgehgcz90025z9yv58qno2r8","Varick Dhannie","vdhannie@costaatt.edu.tt","department","Information Technology","Technology Services","ERROR","Error applying fix: 
+Invalid `prisma.user.update()` invocation in
+/Users/darrenheadley/.cursor/COSTAATT Project/HR/apps/api/scripts/fixDepartmentsFromList.ts:389:29
+
+  386   where: { id: fix.employeeId },
+  387   data: { dept: fix.newValue }
+  388 });
+→ 389 await prisma.user.update(
+An operation failed because it depends on one or more records that were required but not found. No record was found for an update."
+"cmgehgcz90025z9yv58qno2r8","Varick Dhannie","vdhannie@costaatt.edu.tt","jobTitle","IT Support Specialist","Systems Administrator","ERROR","Error applying fix: 
+Invalid `prisma.user.update()` invocation in
+/Users/darrenheadley/.cursor/COSTAATT Project/HR/apps/api/scripts/fixDepartmentsFromList.ts:394:29
+
+  391     data: { dept: fix.newValue }
+  392   });
+  393 } else if (fix.field === 'jobTitle') {
+→ 394   await prisma.user.update(
+An operation failed because it depends on one or more records that were required but not found. No record was found for an update."
+"cmgehxwdm0008z9r1p5lvzbkq","Deborah Romero","dromero@costaatt.edu.tt","department","Student Services","Technology Services","ERROR","Error applying fix: 
+Invalid `prisma.user.update()` invocation in
+/Users/darrenheadley/.cursor/COSTAATT Project/HR/apps/api/scripts/fixDepartmentsFromList.ts:389:29
+
+  386   where: { id: fix.employeeId },
+  387   data: { dept: fix.newValue }
+  388 });
+→ 389 await prisma.user.update(
+An operation failed because it depends on one or more records that were required but not found. No record was found for an update."
+"cmgehxwdm0008z9r1p5lvzbkq","Deborah Romero","dromero@costaatt.edu.tt","jobTitle","Student Affairs Officer","Database Administrator","ERROR","Error applying fix: 
+Invalid `prisma.user.update()` invocation in
+/Users/darrenheadley/.cursor/COSTAATT Project/HR/apps/api/scripts/fixDepartmentsFromList.ts:394:29
+
+  391     data: { dept: fix.newValue }
+  392   });
+  393 } else if (fix.field === 'jobTitle') {
+→ 394   await prisma.user.update(
+An operation failed because it depends on one or more records that were required but not found. No record was found for an update."

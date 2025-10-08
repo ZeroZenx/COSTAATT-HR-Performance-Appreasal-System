@@ -1,0 +1,37 @@
+firstName,lastName,email,role,title,department,division,employmentType,employmentCategory,contractStartDate,contractEndDate,expectedAppraisalMonth,expectedAppraisalDay
+Naseem,Koylass,nkoylass@costaatt.edu.tt,SUPERVISOR,Vice President Academic Affairs,Academic Affairs,Academic Affairs,Full-time,EXECUTIVE,2022-07-01,2025-06-30,June,30
+Jason,Charles,cjack@costaatt.edu.tt,EMPLOYEE,Placement Officer,Career Management Service,Student Affairs,Full-time,GENERAL_STAFF,2021-01-03,2023-01-02,January,2
+Mitzy,Alexander,malexander@costaatt.edu.tt,EMPLOYEE,Administrative Assistant,Communication Studies,Academic Affairs,Full-time,GENERAL_STAFF,2022-02-01,2024-01-31,January,31
+Roddy,Batchasingh,rbatchasingh@costaatt.edu.tt,EMPLOYEE,Senior Lecturer,Communication Studies,Academic Affairs,Full-time,FACULTY,2018-08-28,2021-08-27,August,27
+Sophia,Edwards Knox,sedwards@costaatt.edu.tt,SUPERVISOR,Chair Communication Studies,Communication Studies,Academic Affairs,Full-time,FACULTY,2015-06-01,2018-05-31,May,31
+Julie,Gouveia Ferguson,jgouveia@costaatt.edu.tt,EMPLOYEE,Senior Lecturer,Communication Studies,Academic Affairs,Full-time,FACULTY,2021-01-01,2023-12-31,December,31
+Kayode,James,kjames@costaatt.edu.tt,EMPLOYEE,Senior Lecturer,Communication Studies,Academic Affairs,Full-time,FACULTY,2020-08-01,2023-07-31,July,31
+Sharleen,Joefield-Lovell,sjoefield@costaatt.edu.tt,EMPLOYEE,Senior Lecturer,Communication Studies,Academic Affairs,Full-time,FACULTY,2020-08-01,2023-07-31,July,31
+John-Jason,Kokaram,jkokaram@costaatt.edu.tt,EMPLOYEE,Senior Lecturer,Communication Studies,Academic Affairs,Full-time,FACULTY,2020-08-04,2023-08-03,August,3
+Michelle,Mitchell,mmitchell@costaatt.edu.tt,EMPLOYEE,Senior Lecturer,Communication Studies,Academic Affairs,Full-time,FACULTY,2022-04-11,2025-04-10,April,10
+Jodette,Derby,jderby@costaatt.edu.tt,EMPLOYEE,Clerical Assistant,Compass Center,Student Affairs,Full-time,GENERAL_STAFF,2022-11-01,2024-10-31,October,31
+Permilla,Farrell,pfarrell@costaatt.edu.tt,SUPERVISOR,Director Compass Centre,Compass Center,Student Affairs,Full-time,GENERAL_STAFF,2015-08-01,2018-07-31,July,31
+Adana,Warner,awarner@costaatt.edu.tt,EMPLOYEE,Developmental Advisor,Compass Center,Student Affairs,Full-time,GENERAL_STAFF,2020-07-09,2022-07-08,July,8
+Keron,King,kking@costaatt.edu.tt,EMPLOYEE,Senior Lecturer,Criminal Justice and Legal Studies,Academic Affairs,Full-time,FACULTY,2018-01-05,2021-01-04,January,4
+Ria,Lovelace,rlovelace@costaatt.edu.tt,EMPLOYEE,Administrative Assistant,Criminal Justice and Legal Studies,Academic Affairs,Full-time,GENERAL_STAFF,2021-05-01,2023-04-30,April,30
+Kevin,Peters,kpeters@costaatt.edu.tt,EMPLOYEE,Senior Lecturer,Criminal Justice and Legal Studies,Academic Affairs,Full-time,FACULTY,2019-09-02,2022-09-01,September,1
+Kirwin,Pyle-Williams,kpwilliams@costaatt.edu.tt,SUPERVISOR,Chair Criminal Justice and Legal Studies,Criminal Justice and Legal Studies,Academic Affairs,Full-time,FACULTY,2016-01-04,2019-01-03,January,3
+Kester,David,kdavid@costaatt.edu.tt,EMPLOYEE,Educational Technologies Services Assistant,Educational Technologies and Distance Education,Academic Affairs,Full-time,GENERAL_STAFF,2019-10-01,2021-09-30,September,30
+Liesel,Gransaull-Brown,lgbrown@costaatt.edu.tt,SUPERVISOR,Director Education Technologies,Educational Technologies and Distance Education,Academic Affairs,Full-time,GENERAL_STAFF,2000-01-01,2000-01-01,January,1
+Erin,Camps,ecamps@costaatt.edu.tt,EMPLOYEE,Admissions Counsellor,Enrollment Management,Student Affairs,Full-time,GENERAL_STAFF,2020-04-02,2022-04-01,April,1
+Natalie,Franco,nfranco@costaatt.edu.tt,EMPLOYEE,Admissions Counsellor,Enrollment Management,Student Affairs,Full-time,GENERAL_STAFF,2021-11-16,2023-11-15,November,15
+Reynela,Gilkes-Alvarez,rgalvarez@costaatt.edu.tt,SUPERVISOR,Senior Admissions Counsellor,Enrollment Management,Student Affairs,Full-time,GENERAL_STAFF,2021-02-01,2023-01-31,January,31
+Kevon,Kennedy,kkennedy@costaatt.edu.tt,EMPLOYEE,Clerical Assistant,Enrollment Management,Student Affairs,Full-time,GENERAL_STAFF,2000-01-01,2000-01-01,January,1
+Tanasha,Miller,tmiller@costaatt.edu.tt,EMPLOYEE,Clerical Assistant,Enrollment Management,Student Affairs,Full-time,GENERAL_STAFF,2017-10-01,2019-09-30,September,30
+Aaron,Mohammed,amohammed@costaatt.edu.tt,EMPLOYEE,Admissions Counsellor,Enrollment Management,Student Affairs,Full-time,GENERAL_STAFF,2020-08-03,2022-08-02,August,2
+Cindy,Morris,cmorris@costaatt.edu.tt,EMPLOYEE,Administrative Assistant,Enrollment Management,Student Affairs,Full-time,GENERAL_STAFF,2021-01-17,2023-01-16,January,16
+Marvin,Pollard,mpollard@costaatt.edu.tt,EMPLOYEE,Admissions Counsellor,Enrollment Management,Student Affairs,Full-time,GENERAL_STAFF,2021-11-18,2023-11-17,November,17
+Liselle,Prevatt,lprevatt@costaatt.edu.tt,EMPLOYEE,Admissions Counsellor I,Enrollment Management,Student Affairs,Full-time,GENERAL_STAFF,2020-04-10,2022-04-09,April,9
+Abigail,Villafana,avillafana@costaatt.edu.tt,EMPLOYEE,Admissions Assistant I,Enrollment Management,Student Affairs,Full-time,GENERAL_STAFF,2021-01-11,2023-01-10,January,10
+Abeni,Charles-Harris,acharris@costaatt.edu.tt,EMPLOYEE,Senior Lecturer,Environmental Studies,Academic Affairs,Full-time,FACULTY,2017-08-01,2020-07-31,July,31
+Venessa,Elliot,velliot@costaatt.edu.tt,EMPLOYEE,Senior Lecturer,Environmental Studies,Academic Affairs,Full-time,FACULTY,2021-08-17,2024-08-16,August,16
+Michelle,Hypolite,mhypolite@costaatt.edu.tt,EMPLOYEE,Senior Lecturer,Environmental Studies,Academic Affairs,Full-time,FACULTY,2019-08-05,2022-08-04,August,4
+Sochan,Laltoo,slaltoo@costaatt.edu.tt,EMPLOYEE,Senior Lecturer,Environmental Studies,Academic Affairs,Full-time,FACULTY,2018-08-03,2021-08-02,August,2
+Cheryl-Ann,Long,clong@costaatt.edu.tt,EMPLOYEE,Administrative Assistant,Environmental Studies,Academic Affairs,Full-time,GENERAL_STAFF,2021-05-09,2023-05-08,May,8
+Karen,Paul,kpaul@costaatt.edu.tt,SUPERVISOR,Chair Ag Environmental Studies,Environmental Studies,Academic Affairs,Full-time,FACULTY,2016-03-01,2019-02-28,February,28
+Christian,Virgil,cvirgil@costaatt.edu.tt,EMPLOYEE,Senior Lecturer,Environmental Studies,Academic Affairs,Full-time,FACULTY,2019-08-12,2021-08-11,August,11

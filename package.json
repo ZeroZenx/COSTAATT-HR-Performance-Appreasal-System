@@ -1,0 +1,49 @@
+{
+  "name": "costaatt-hr-performance-gateway",
+  "version": "1.0.0",
+  "description": "COSTAATT HR Performance Management Platform",
+  "private": true,
+  "workspaces": [
+    "apps/api",
+    "apps/web",
+    "packages/shared"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:api\" \"npm run dev:web\"",
+    "dev:api": "npm run dev --workspace=@costaatt/api",
+    "dev:web": "npm run dev --workspace=@costaatt/web",
+    "build": "npm run build --workspaces",
+    "test": "npm run test --workspaces",
+    "test:e2e": "npm run test:e2e --workspace=@costaatt/web",
+    "lint": "npm run lint --workspaces",
+    "format": "prettier --write .",
+    "db:generate": "npm run db:generate --workspace=@costaatt/api",
+    "db:migrate": "npm run db:migrate --workspace=@costaatt/api",
+    "db:seed": "npm run db:seed --workspace=@costaatt/api",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "concurrently": "^8.2.0",
+    "eslint": "^8.45.0",
+    "eslint-config-prettier": "^9.0.0",
+    "eslint-plugin-prettier": "^5.0.0",
+    "husky": "^8.0.3",
+    "lint-staged": "^14.0.1",
+    "prettier": "^3.0.0",
+    "typescript": "^5.1.6"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "prettier --write"
+    ]
+  }
+}
+

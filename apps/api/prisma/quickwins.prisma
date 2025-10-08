@@ -1,0 +1,39 @@
+// Quick Wins Prisma Models
+// Add these to your main schema.prisma
+
+model Notification {
+  id          String   @id @default(cuid())
+  type        String   // 'appraisal_submitted', 'reminder', 'outlier_alert'
+  recipientId String?  // User ID (optional for system notifications)
+  recipientEmail String
+  subject     String
+  body        String
+  htmlBody    String?
+  status      String   // 'pending', 'sent', 'failed'
+  sentAt      DateTime?
+  error       String?
+  metadata    Json?    // Additional data like appraisalId, etc.
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("notifications")
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  userId      String?  // Who made the change
+  action      String   // 'CREATE', 'UPDATE', 'DELETE', 'LOGIN', etc.
+  resource    String   // 'appraisal', 'employee', 'user', etc.
+  resourceId  String?  // ID of the affected resource
+  oldValues   Json?    // Previous values
+  newValues   Json?    // New values
+  ipAddress   String?
+  userAgent   String?
+  metadata    Json?    // Additional context
+  createdAt   DateTime @default(now())
+
+  @@map("audit_logs")
+  @@index([userId])
+  @@index([resource, resourceId])
+  @@index([createdAt])
+}

@@ -1,0 +1,49 @@
+Employee Reconciliation Report
+Generated: 2025-10-06T11:55:53.228Z
+
+Summary:
+- Missing in system: 36
+- Present in system: 0
+- Extra in system: 0
+- Changed in system: 0
+
+Missing employees:
+- Naseem Koylass (nkoylass@costaatt.edu.tt)
+- Jason Charles (cjack@costaatt.edu.tt)
+- Mitzy Alexander (malexander@costaatt.edu.tt)
+- Roddy Batchasingh (rbatchasingh@costaatt.edu.tt)
+- Sophia Edwards Knox (sedwards@costaatt.edu.tt)
+- Julie Gouveia Ferguson (jgouveia@costaatt.edu.tt)
+- Kayode James (kjames@costaatt.edu.tt)
+- Sharleen Joefield-Lovell (sjoefield@costaatt.edu.tt)
+- John-Jason Kokaram (jkokaram@costaatt.edu.tt)
+- Michelle Mitchell (mmitchell@costaatt.edu.tt)
+- Jodette Derby (jderby@costaatt.edu.tt)
+- Permilla Farrell (pfarrell@costaatt.edu.tt)
+- Adana Warner (awarner@costaatt.edu.tt)
+- Keron King (kking@costaatt.edu.tt)
+- Ria Lovelace (rlovelace@costaatt.edu.tt)
+- Kevin Peters (kpeters@costaatt.edu.tt)
+- Kirwin Pyle-Williams (kpwilliams@costaatt.edu.tt)
+- Kester David (kdavid@costaatt.edu.tt)
+- Liesel Gransaull-Brown (lgbrown@costaatt.edu.tt)
+- Erin Camps (ecamps@costaatt.edu.tt)
+- Natalie Franco (nfranco@costaatt.edu.tt)
+- Reynela Gilkes-Alvarez (rgalvarez@costaatt.edu.tt)
+- Kevon Kennedy (kkennedy@costaatt.edu.tt)
+- Tanasha Miller (tmiller@costaatt.edu.tt)
+- Aaron Mohammed (amohammed@costaatt.edu.tt)
+- Cindy Morris (cmorris@costaatt.edu.tt)
+- Marvin Pollard (mpollard@costaatt.edu.tt)
+- Liselle Prevatt (lprevatt@costaatt.edu.tt)
+- Abigail Villafana (avillafana@costaatt.edu.tt)
+- Abeni Charles-Harris (acharris@costaatt.edu.tt)
+- Venessa Elliot (velliot@costaatt.edu.tt)
+- Michelle Hypolite (mhypolite@costaatt.edu.tt)
+- Sochan Laltoo (slaltoo@costaatt.edu.tt)
+- Cheryl-Ann Long (clong@costaatt.edu.tt)
+- Karen Paul (kpaul@costaatt.edu.tt)
+- Christian Virgil (cvirgil@costaatt.edu.tt)
+
+Changed employees:
+

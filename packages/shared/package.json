@@ -1,0 +1,19 @@
+{
+  "name": "@costaatt/shared",
+  "version": "1.0.0",
+  "description": "Shared types and utilities for COSTAATT HR Performance Gateway",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "typescript": "^5.1.6"
+  },
+  "dependencies": {
+    "zod": "^3.22.4"
+  }
+}
+

@@ -1,0 +1,117 @@
+# Docker Compose configuration
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: costaatt_hr
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # MinIO S3-compatible storage
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin123
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:9000/minio/health/live']
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  # MinIO Console (using web interface instead)
+  # minio-console:
+  #   image: minio/console:latest
+  #   environment:
+  #     CONSOLE_MINIO_SERVER: http://minio:9000
+  #   ports:
+  #     - '9002:9000'
+  #   depends_on:
+  #     - minio
+
+  # MailHog for development email testing
+  mailhog:
+    image: mailhog/mailhog:latest
+    ports:
+      - '1025:1025'
+      - '8025:8025'
+
+  # Chrome for Puppeteer PDF generation
+  chrome:
+    image: browserless/chrome:latest
+    ports:
+      - '3001:3000'
+    environment:
+      - PREBOOT_CHROME=true
+      - KEEP_ALIVE=true
+      - CHROME_REFRESH_TIME=300000
+
+  # API Backend
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    ports:
+      - '3000:3000'
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/costaatt_hr
+      - JWT_SECRET=your-super-secret-jwt-key-change-in-production
+      - JWT_REFRESH_SECRET=your-super-secret-refresh-key-change-in-production
+      - STORAGE_ENDPOINT=http://minio:9000
+      - STORAGE_ACCESS_KEY=minioadmin
+      - STORAGE_SECRET_KEY=minioadmin123
+      - STORAGE_BUCKET=costaatt-hr-documents
+      - PUBLIC_BASE_URL=http://localhost:3000
+      - PDF_SIGNATURE_SALT=your-pdf-signature-salt-change-in-production
+      - PUPPETEER_ENDPOINT=http://chrome:3000
+    depends_on:
+      db:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      chrome:
+        condition: service_started
+    volumes:
+      - ./apps/api:/app
+      - /app/node_modules
+    command: npm run dev
+
+  # Web Frontend
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    ports:
+      - '5173:5173'
+    environment:
+      - VITE_API_URL=http://localhost:3000
+      - VITE_APP_NAME=COSTAATT HR Performance Gateway
+    depends_on:
+      - api
+    volumes:
+      - ./apps/web:/app
+      - /app/node_modules
+    command: npm run dev
+
+volumes:
+  postgres_data:
+  minio_data:
+
