@@ -149,13 +149,6 @@ export function CreateAppraisalPage() {
     }
 
     try {
-        employeeId: selectedEmployee,
-        templateId: selectedTemplate,
-        cycleId: selectedCycle,
-        createdBy: user?.id || '',
-        options: options,
-      });
-
       // Create appraisal instance
       const response = await appraisalInstancesApi.create({
         employeeId: selectedEmployee,
@@ -199,12 +192,6 @@ export function CreateAppraisalPage() {
       </div>
     );
   }
-
-    employees: employees?.length || 0,
-    cycles: cycles?.length || 0,
-    employeesLoading,
-    cyclesLoading
-  });
 
   // Check if user has permission to create appraisals
   if (!isSupervisor && !isHRAdmin) {
