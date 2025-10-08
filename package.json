@@ -6,6 +6,7 @@
   "workspaces": [
     "apps/api",
     "apps/web",
+    "apps/desktop",
     "packages/shared"
   ],
   "scripts": {
@@ -22,7 +23,11 @@
     "db:seed": "npm run db:seed --workspace=@costaatt/api",
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",
-    "docker:logs": "docker-compose logs -f"
+    "docker:logs": "docker-compose logs -f",
+    "desktop:build": "node apps/desktop/build-desktop.js",
+    "desktop:win": "npm run desktop:build && npm run build-win --workspace=costaatt-hr-desktop",
+    "desktop:mac": "npm run desktop:build && npm run build-mac --workspace=costaatt-hr-desktop",
+    "desktop:linux": "npm run desktop:build && npm run build-linux --workspace=costaatt-hr-desktop"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^6.0.0",
