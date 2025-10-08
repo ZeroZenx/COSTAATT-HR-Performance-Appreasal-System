@@ -9,7 +9,8 @@ import {
   Plus,
   User,
   HelpCircle,
-  Settings
+  Settings,
+  Database
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 
@@ -22,7 +23,8 @@ const iconMap = {
   Plus,
   User,
   HelpCircle,
-  Settings
+  Settings,
+  Database
 };
 
 export function Sidebar() {

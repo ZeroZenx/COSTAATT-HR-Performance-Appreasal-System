@@ -17,6 +17,7 @@ import AppraisalDetailsPage from './pages/AppraisalDetailsPage';
 import SettingsPage from './pages/SettingsPage';
 import UserManagementPage from './pages/UserManagementPage';
 import { AppraisalCyclesPage } from './pages/AppraisalCyclesPage';
+import { IntegrationDashboard } from './pages/IntegrationDashboard';
 import { Layout } from './components/Layout';
 import { LoadingSpinner } from './components/ui/loading-spinner';
 import { RouteGuard } from './components/RouteGuard';
@@ -97,6 +98,14 @@ function AppContent() {
           element={
             <RouteGuard action="manage" resource="cycle">
               <AppraisalCyclesPage />
+            </RouteGuard>
+          } 
+        />
+        <Route 
+          path="/integration" 
+          element={
+            <RouteGuard action="manage" resource="integration">
+              <IntegrationDashboard />
             </RouteGuard>
           } 
         />

@@ -9,6 +9,7 @@ const natural = require('natural');
 const compromise = require('compromise');
 const { stemmer } = require('stemmer');
 const argon2 = require('argon2');
+const integrationRoutes = require('./routes/integration');
 
 const app = express();
 const prisma = new PrismaClient();
@@ -2295,6 +2296,9 @@ const adminOutliers = require('./routes/admin.outliers');
 
 app.use('/api/admin', adminStuck);
 app.use('/api/admin', adminOutliers);
+
+// Integration routes
+app.use('/api/integration', integrationRoutes);
 
 // ===== DIVISIONAL HEAD REVIEW ENDPOINTS =====
 

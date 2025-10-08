@@ -215,6 +215,7 @@ export class RBAC {
           { name: 'User Management', href: '/users', icon: 'User' },
           { name: 'Competencies', href: '/competencies', icon: 'Target' },
           { name: 'Reports', href: '/reports', icon: 'BarChart3' },
+          { name: 'Database Integration', href: '/integration', icon: 'Database' },
           { name: 'Settings', href: '/settings', icon: 'Settings' }
         ];
 
