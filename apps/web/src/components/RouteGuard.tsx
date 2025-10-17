@@ -1,56 +1,28 @@
 import React from 'react';
-import { Navigate, useLocation } from 'react-router-dom';
-import { usePermissions } from './RoleGuard';
-import { Action, Resource } from '../lib/rbac';
+import { Navigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 
 interface RouteGuardProps {
   children: React.ReactNode;
-  action: Action;
-  resource: Resource;
-  context?: any;
-  redirectTo?: string;
 }
 
-/**
- * Route-level access control component
- * Redirects unauthorized users to a specified route
- */
-export function RouteGuard({ 
-  children, 
-  action, 
-  resource, 
-  context = {}, 
-  redirectTo = '/dashboard' 
-}: RouteGuardProps) {
-  const { can } = usePermissions();
-  const location = useLocation();
+export function RouteGuard({ children }: RouteGuardProps) {
+  const { user, isLoading } = useAuth();
 
-  const hasPermission = can(action, resource, context);
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
-  if (!hasPermission) {
-    // Store the attempted route for potential redirect after login
-    sessionStorage.setItem('redirectAfterLogin', location.pathname);
-    return <Navigate to={redirectTo} replace />;
+  if (!user) {
+    return <Navigate to="/login" replace />;
   }
 
   return <>{children}</>;
-}
-
-/**
- * Higher-order component for route protection
- */
-export function withRouteGuard<T extends object>(
-  Component: React.ComponentType<T>,
-  action: Action,
-  resource: Resource,
-  context?: any,
-  redirectTo?: string
-) {
-  return function ProtectedRoute(props: T) {
-    return (
-      <RouteGuard action={action} resource={resource} context={context} redirectTo={redirectTo}>
-        <Component {...props} />
-      </RouteGuard>
-    );
-  };
 }

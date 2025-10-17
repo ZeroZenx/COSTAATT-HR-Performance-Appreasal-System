@@ -1,434 +1,347 @@
 const { PrismaClient } = require('@prisma/client');
-const fs = require('fs');
-const path = require('path');
+const bcrypt = require('bcryptjs');
 
 const prisma = new PrismaClient();
 
-async function seedCompleteData() {
-  try {
-    console.log('🌱 Starting complete data seeding...');
+async function main() {
+  console.log('🌱 Starting database seed...');
 
-    // 1. Seed Appraisal Cycles
-    console.log('📅 Creating appraisal cycles...');
-    const cycles = [
-      {
-        name: '2024 Annual Performance Review',
+  // Create admin user
+  const adminPassword = await bcrypt.hash('P@ssw0rd!', 12);
+  const admin = await prisma.user.upsert({
+    where: { email: 'admin@costaatt.edu.tt' },
+    update: {},
+    create: {
+      email: 'admin@costaatt.edu.tt',
+      passwordHash: adminPassword,
+      role: 'HR_ADMIN',
+      firstName: 'Admin',
+      lastName: 'User',
+      dept: 'Human Resources',
+      title: 'HR Administrator',
+      authProvider: 'LOCAL',
+      active: true
+    },
+  });
+
+  // Create supervisor user
+  const supervisorPassword = await bcrypt.hash('password123', 12);
+  const supervisor = await prisma.user.upsert({
+    where: { email: 'john.doe@costaatt.edu.tt' },
+    update: {},
+    create: {
+      email: 'john.doe@costaatt.edu.tt',
+      passwordHash: supervisorPassword,
+      role: 'SUPERVISOR',
+      firstName: 'John',
+      lastName: 'Doe',
+      dept: 'Academic Affairs',
+      title: 'Department Head',
+      authProvider: 'LOCAL',
+      active: true
+    },
+  });
+
+  // Create employee user
+  const employeePassword = await bcrypt.hash('password123', 12);
+  const employee = await prisma.user.upsert({
+    where: { email: 'mike.johnson@costaatt.edu.tt' },
+    update: {},
+    create: {
+      email: 'mike.johnson@costaatt.edu.tt',
+      passwordHash: employeePassword,
+      role: 'EMPLOYEE',
+      firstName: 'Mike',
+      lastName: 'Johnson',
+      dept: 'Faculty',
+      title: 'Lecturer',
+      authProvider: 'LOCAL',
+      active: true
+    },
+  });
+
+  console.log('✅ Users created successfully');
+
+  // Create employee records
+  await prisma.employee.upsert({
+    where: { userId: admin.id },
+    update: {},
+    create: {
+      userId: admin.id,
+      dept: 'Human Resources',
+      division: 'Administration',
+      employmentType: 'FULL_TIME',
+      employmentCategory: 'GENERAL_STAFF'
+    },
+  });
+
+  await prisma.employee.upsert({
+    where: { userId: supervisor.id },
+    update: {},
+    create: {
+      userId: supervisor.id,
+      dept: 'Academic Affairs',
+      division: 'Faculty',
+      employmentType: 'FULL_TIME',
+      employmentCategory: 'FACULTY'
+    },
+  });
+
+  await prisma.employee.upsert({
+    where: { userId: employee.id },
+    update: {},
+    create: {
+      userId: employee.id,
+      dept: 'Faculty',
+      division: 'Faculty',
+      employmentType: 'FULL_TIME',
+      employmentCategory: 'FACULTY'
+    },
+  });
+
+  console.log('✅ Employee records created successfully');
+
+  // Create appraisal cycle
+  const cycle = await prisma.appraisalCycle.upsert({
+    where: { id: 'default-cycle' },
+    update: {},
+    create: {
+      id: 'default-cycle',
+      name: '2024 Performance Review',
         periodStart: new Date('2024-01-01'),
         periodEnd: new Date('2024-12-31'),
         status: 'ACTIVE'
       },
-      {
-        name: '2024 Mid-Year Review',
-        periodStart: new Date('2024-06-01'),
-        periodEnd: new Date('2024-08-31'),
-        status: 'ACTIVE'
-      },
-      {
-        name: '2025 Annual Performance Review',
-        periodStart: new Date('2025-01-01'),
-        periodEnd: new Date('2025-12-31'),
-        status: 'PLANNED'
-      }
-    ];
+  });
 
-    for (const cycle of cycles) {
-      const existing = await prisma.appraisalCycle.findFirst({
-        where: { name: cycle.name }
-      });
-      
-      if (!existing) {
-        await prisma.appraisalCycle.create({
-          data: cycle
-        });
-      }
-    }
+  console.log('✅ Appraisal cycle created successfully');
 
-    // 2. Seed Competencies
-    console.log('🎯 Creating competencies...');
+  // Create competencies
     const competencies = [
-      // Academic Competencies
-      {
-        code: 'TEACH_EXCELLENCE',
-        title: 'Teaching Excellence',
-        cluster: 'CORE',
-        department: 'Academic Affairs',
-        definition: 'Demonstrates effective teaching methods and student engagement',
-        behaviorsBasic: 'Uses standard teaching methods and maintains basic student engagement',
-        behaviorsAbove: 'Uses innovative teaching methods and maintains high student engagement',
-        behaviorsOutstanding: 'Pioneers new teaching approaches and achieves exceptional student outcomes'
-      },
-      {
-        code: 'RESEARCH_SCHOLARSHIP',
-        title: 'Research and Scholarship',
-        cluster: 'CORE',
-        department: 'Academic Affairs',
-        definition: 'Conducts meaningful research and contributes to academic knowledge',
-        behaviorsBasic: 'Participates in research activities and maintains basic scholarly output',
-        behaviorsAbove: 'Publishes in peer-reviewed journals and secures research funding',
-        behaviorsOutstanding: 'Leads major research initiatives and mentors research students'
-      },
-      {
-        code: 'CURRICULUM_DEV',
-        title: 'Curriculum Development',
-        cluster: 'CORE',
-        department: 'Academic Affairs',
-        definition: 'Develops and maintains relevant curriculum content',
-        behaviorsBasic: 'Updates course materials and maintains curriculum standards',
-        behaviorsAbove: 'Designs innovative course materials and integrates technology',
-        behaviorsOutstanding: 'Pioneers new curriculum approaches and leads program development'
-      },
-      {
-        code: 'STUDENT_ASSESSMENT',
-        title: 'Student Assessment',
-        cluster: 'CORE',
-        department: 'Academic Affairs',
-        definition: 'Develops fair and effective assessment methods',
-        behaviorsBasic: 'Uses standard assessment methods and provides basic feedback',
-        behaviorsAbove: 'Creates innovative assessment tools and provides comprehensive feedback',
-        behaviorsOutstanding: 'Develops new assessment frameworks and mentors others in assessment'
-      },
-      // Administrative Competencies
-      {
-        code: 'LEADERSHIP_MGMT',
-        title: 'Leadership and Management',
-        cluster: 'FUNCTIONAL',
-        department: 'Administration',
-        definition: 'Demonstrates effective leadership and management skills',
-        behaviorsBasic: 'Manages day-to-day operations and maintains team productivity',
-        behaviorsAbove: 'Leads team effectively and makes sound strategic decisions',
-        behaviorsOutstanding: 'Transforms organizational culture and develops future leaders'
-      },
-      {
-        code: 'STRATEGIC_PLANNING',
-        title: 'Strategic Planning',
-        cluster: 'FUNCTIONAL',
-        department: 'Administration',
-        definition: 'Contributes to organizational strategic planning',
-        behaviorsBasic: 'Participates in planning activities and follows established processes',
-        behaviorsAbove: 'Develops strategic initiatives and aligns with institutional goals',
-        behaviorsOutstanding: 'Leads strategic transformation and shapes institutional direction'
-      },
       {
         code: 'COMMUNICATION',
         title: 'Communication Skills',
+      definition: 'Effective verbal and written communication',
         cluster: 'CORE',
-        department: 'Administration',
-        definition: 'Communicates effectively with various stakeholders',
-        behaviorsBasic: 'Communicates clearly and listens to feedback',
-        behaviorsAbove: 'Adapts communication style and presents information effectively',
-        behaviorsOutstanding: 'Influences organizational communication and mentors others'
-      },
-      {
-        code: 'PROBLEM_SOLVING',
-        title: 'Problem Solving',
+      department: 'All',
+      behaviorsBasic: 'Communicates clearly in routine situations',
+      behaviorsAbove: 'Adapts communication style to audience',
+      behaviorsOutstanding: 'Influences and persuades effectively'
+    },
+    {
+      code: 'TEAMWORK',
+      title: 'Teamwork',
+      definition: 'Collaborative working with colleagues',
+      cluster: 'CORE',
+      department: 'All',
+      behaviorsBasic: 'Works well with team members',
+      behaviorsAbove: 'Takes initiative in team projects',
+      behaviorsOutstanding: 'Leads and motivates team members'
+    },
+    {
+      code: 'LEADERSHIP',
+      title: 'Leadership',
+      definition: 'Leading and motivating others',
         cluster: 'FUNCTIONAL',
-        department: 'Administration',
-        definition: 'Identifies and resolves complex problems',
-        behaviorsBasic: 'Identifies problems and applies standard solutions',
-        behaviorsAbove: 'Develops creative solutions and implements them effectively',
-        behaviorsOutstanding: 'Anticipates problems and develops systemic solutions'
-      },
-      // Technical Competencies
-      {
-        code: 'TECH_INTEGRATION',
-        title: 'Technology Integration',
-        cluster: 'FUNCTIONAL',
-        department: 'IT Services',
-        definition: 'Effectively integrates technology in work processes',
-        behaviorsBasic: 'Uses standard software tools and follows established procedures',
-        behaviorsAbove: 'Adapts to new technologies and troubleshoots technical issues',
-        behaviorsOutstanding: 'Pioneers technology adoption and trains others effectively'
-      },
-      {
-        code: 'DATA_ANALYSIS',
-        title: 'Data Analysis',
-        cluster: 'FUNCTIONAL',
-        department: 'IT Services',
-        definition: 'Analyzes data to inform decision-making',
-        behaviorsBasic: 'Collects data and performs basic analysis',
-        behaviorsAbove: 'Uses advanced analysis methods and interprets results accurately',
-        behaviorsOutstanding: 'Develops analytical frameworks and guides organizational data strategy'
-      }
-    ];
-
-    for (const competency of competencies) {
-      const existing = await prisma.competency.findFirst({
-        where: { code: competency.code }
-      });
-      
-      if (!existing) {
-        await prisma.competency.create({
-          data: competency
-        });
-      }
+      department: 'Management',
+      behaviorsBasic: 'Provides guidance to team members',
+      behaviorsAbove: 'Develops and mentors others',
+      behaviorsOutstanding: 'Inspires and drives organizational change'
     }
+  ];
 
-    // 3. Seed Appraisal Templates
-    console.log('📋 Creating appraisal templates...');
-    const templates = [
-      {
-        name: 'Academic Staff Performance Review',
-        type: 'FACULTY',
-        code: 'ACAD_2024',
-        displayName: 'Academic Staff Performance Review',
-        configJson: {
-          sections: [
-            {
-              name: 'Teaching Performance',
-              weight: 40,
-              criteria: [
-                { name: 'Teaching Excellence', weight: 50 },
-                { name: 'Curriculum Development', weight: 30 },
-                { name: 'Student Assessment', weight: 20 }
-              ]
-            },
-            {
-              name: 'Research and Scholarship',
-              weight: 30,
-              criteria: [
-                { name: 'Research and Scholarship', weight: 100 }
-              ]
-            },
-            {
-              name: 'Service and Administration',
-              weight: 20,
-              criteria: [
-                { name: 'Leadership and Management', weight: 40 },
-                { name: 'Communication Skills', weight: 30 },
-                { name: 'Problem Solving', weight: 30 }
-              ]
-            },
-            {
-              name: 'Professional Development',
-              weight: 10,
-              criteria: [
-                { name: 'Technology Integration', weight: 50 },
-                { name: 'Data Analysis', weight: 50 }
-              ]
-            }
-          ]
-        },
-        published: true
-      },
-      {
-        name: 'Administrative Staff Performance Review',
-        type: 'GENERAL_STAFF',
-        code: 'ADMIN_2024',
-        displayName: 'Administrative Staff Performance Review',
-        configJson: {
-          sections: [
-            {
-              name: 'Core Administrative Functions',
-              weight: 50,
-              criteria: [
-                { name: 'Leadership and Management', weight: 40 },
-                { name: 'Communication Skills', weight: 30 },
-                { name: 'Problem Solving', weight: 30 }
-              ]
-            },
-            {
-              name: 'Strategic Contribution',
-              weight: 30,
-              criteria: [
-                { name: 'Strategic Planning', weight: 100 }
-              ]
-            },
-            {
-              name: 'Technical Proficiency',
-              weight: 20,
-              criteria: [
-                { name: 'Technology Integration', weight: 50 },
-                { name: 'Data Analysis', weight: 50 }
-              ]
-            }
-          ]
-        },
-        published: true
-      },
-      {
-        name: 'Support Staff Performance Review',
-        type: 'GENERAL_STAFF',
-        code: 'SUPPORT_2024',
-        displayName: 'Support Staff Performance Review',
-        configJson: {
-          sections: [
-            {
-              name: 'Job Performance',
-              weight: 60,
-              criteria: [
-                { name: 'Communication Skills', weight: 40 },
-                { name: 'Problem Solving', weight: 30 },
-                { name: 'Technology Integration', weight: 30 }
-              ]
-            },
-            {
-              name: 'Team Contribution',
-              weight: 25,
-              criteria: [
-                { name: 'Leadership and Management', weight: 50 },
-                { name: 'Data Analysis', weight: 50 }
-              ]
-            },
-            {
-              name: 'Professional Development',
-              weight: 15,
-              criteria: [
-                { name: 'Strategic Planning', weight: 100 }
-              ]
-            }
-          ]
-        },
-        published: true
-      }
-    ];
-
-    for (const template of templates) {
-      const existing = await prisma.appraisalTemplate.findFirst({
-        where: { code: template.code }
-      });
-      
-      if (!existing) {
-        await prisma.appraisalTemplate.create({
-          data: template
-        });
-      }
-    }
-
-    // 4. Import Staff from CSV
-    console.log('👥 Importing staff from CSV...');
-    const csvPath = path.join(__dirname, '..', 'data', 'complete_staff.csv');
-    
-    if (fs.existsSync(csvPath)) {
-      const csvContent = fs.readFileSync(csvPath, 'utf8');
-      const lines = csvContent.split('\n');
-      const headers = lines[0].split(',').map(h => h.trim());
-      
-      let importedCount = 0;
-      
-      for (let i = 1; i < lines.length; i++) {
-        if (lines[i].trim()) {
-          const values = lines[i].split(',').map(v => v.trim());
-          const employeeData = {};
-          
-          headers.forEach((header, index) => {
-            employeeData[header.toLowerCase().replace(/\s+/g, '')] = values[index] || '';
-          });
-          
-          try {
-            // Create employee
-            const employee = await prisma.employee.create({
-              data: {
-                employeeId: employeeData.employeeid || `EMP${String(importedCount + 1).padStart(4, '0')}`,
-                firstName: employeeData.firstname || 'Unknown',
-                lastName: employeeData.lastname || 'Employee',
-                email: employeeData.email || `employee${importedCount + 1}@costaatt.edu.tt`,
-                division: employeeData.division || 'General',
-                employmentType: employeeData.employmenttype || 'FULL_TIME',
-                position: employeeData.position || 'Staff',
-                hireDate: employeeData.hiredate ? new Date(employeeData.hiredate) : new Date(),
-                managerId: null, // Will be set later if needed
-                active: true
-              }
-            });
-            
-            // Create corresponding user
-            await prisma.user.create({
-              data: {
-                email: employee.email,
-                firstName: employee.firstName,
-                lastName: employee.lastName,
-                role: 'EMPLOYEE',
-                authProvider: 'SSO',
-                dept: employee.division,
-                title: employee.position,
-                active: true
-              }
-            });
-            
-            importedCount++;
-            
-            if (importedCount % 50 === 0) {
-              console.log(`📊 Imported ${importedCount} employees...`);
-            }
-          } catch (error) {
-            console.log(`⚠️  Skipped employee ${i}: ${error.message}`);
-          }
-        }
-      }
-      
-      console.log(`✅ Imported ${importedCount} employees from CSV`);
-    } else {
-      console.log('⚠️  CSV file not found, creating sample employees...');
-      
-      // Create sample employees if CSV not found
-      const sampleEmployees = [
-        {
-          employeeId: 'EMP001',
-          firstName: 'John',
-          lastName: 'Smith',
-          email: 'john.smith@costaatt.edu.tt',
-          division: 'Academic Affairs',
-          employmentType: 'FULL_TIME',
-          position: 'Professor',
-          hireDate: new Date('2020-01-15'),
-          active: true
-        },
-        {
-          employeeId: 'EMP002',
-          firstName: 'Jane',
-          lastName: 'Doe',
-          email: 'jane.doe@costaatt.edu.tt',
-          division: 'Administration',
-          employmentType: 'FULL_TIME',
-          position: 'Administrative Officer',
-          hireDate: new Date('2019-03-01'),
-          active: true
-        },
-        {
-          employeeId: 'EMP003',
-          firstName: 'Michael',
-          lastName: 'Johnson',
-          email: 'michael.johnson@costaatt.edu.tt',
-          division: 'Student Services',
-          employmentType: 'FULL_TIME',
-          position: 'Student Advisor',
-          hireDate: new Date('2021-06-01'),
-          active: true
-        }
-      ];
-
-      for (const emp of sampleEmployees) {
-        const employee = await prisma.employee.create({
-          data: emp
-        });
-
-        await prisma.user.create({
-          data: {
-            email: employee.email,
-            firstName: employee.firstName,
-            lastName: employee.lastName,
-            role: 'EMPLOYEE',
-            authProvider: 'SSO',
-            dept: employee.division,
-            title: employee.position,
-            active: true
-          }
-        });
-      }
-    }
-
-    console.log('✅ Complete data seeding finished!');
-    console.log('📊 Summary:');
-    console.log(`   - Appraisal Cycles: ${cycles.length}`);
-    console.log(`   - Competencies: ${competencies.length}`);
-    console.log(`   - Appraisal Templates: ${templates.length}`);
-    console.log(`   - Employees: Check database`);
-
-  } catch (error) {
-    console.error('❌ Error seeding data:', error);
-  } finally {
-    await prisma.$disconnect();
+  for (const comp of competencies) {
+    await prisma.competency.upsert({
+      where: { code: comp.code },
+      update: {},
+      create: comp,
+    });
   }
+
+  console.log('✅ Competencies created successfully');
+
+  // Create employee categories
+  const categories = [
+    {
+      id: 'faculty-category',
+      name: 'Faculty',
+      description: 'Academic teaching staff',
+      active: true
+    },
+    {
+      id: 'staff-category',
+      name: 'General Staff',
+      description: 'Administrative and support staff',
+      active: true
+    }
+  ];
+
+  for (const category of categories) {
+    await prisma.employeeCategory.upsert({
+      where: { id: category.id },
+      update: {},
+      create: category,
+    });
+  }
+
+  console.log('✅ Employee categories created successfully');
+
+  // Create rating scale
+  const ratingScale = await prisma.ratingScale.upsert({
+    where: { id: 'default-scale' },
+    update: {},
+    create: {
+      id: 'default-scale',
+      name: 'Standard Performance Scale',
+      minValue: 1,
+      maxValue: 5,
+      labels: {
+        1: 'Unsatisfactory',
+        2: 'Below Expectations',
+        3: 'Meets Expectations',
+        4: 'Exceeds Expectations',
+        5: 'Outstanding'
+      },
+      active: true
+    },
+  });
+
+  console.log('✅ Rating scale created successfully');
+
+  // Create appraisal template
+  const template = await prisma.appraisalTemplate.upsert({
+    where: { id: 'default-template' },
+    update: {},
+    create: {
+      id: 'default-template',
+      name: 'Standard Performance Appraisal',
+        type: 'GENERAL_STAFF',
+      displayName: 'Standard Performance Appraisal Template',
+      version: '1.0',
+      code: 'STANDARD',
+      published: true,
+      active: true,
+      ratingScaleId: ratingScale.id,
+        configJson: {
+          sections: [
+            {
+            title: 'Performance Goals',
+            weight: 0.3,
+            questions: [
+              {
+                text: 'Rate achievement of performance goals',
+                type: 'rating',
+                required: true
+              }
+            ]
+          },
+          {
+            title: 'Core Competencies',
+            weight: 0.4,
+            questions: [
+              {
+                text: 'Rate communication skills',
+                type: 'rating',
+                required: true
+              },
+              {
+                text: 'Rate teamwork abilities',
+                type: 'rating',
+                required: true
+              }
+            ]
+          },
+          {
+            title: 'Development Areas',
+            weight: 0.3,
+            questions: [
+              {
+                text: 'Identify areas for improvement',
+                type: 'text',
+                required: true
+              }
+            ]
+          }
+        ]
+      }
+    },
+  });
+
+  console.log('✅ Appraisal template created successfully');
+
+  // Create system configuration
+  await prisma.systemConfig.upsert({
+    where: { id: 1 },
+    update: {},
+    create: {
+      id: 1,
+      selfAppraisalRequired: true,
+      selfRatingsEnabled: true,
+      defaultAttachmentMB: 25,
+      reminderDays: {
+        self: 7,
+        manager: 14,
+        overdueCadenceDays: 3
+      },
+      ssoEnabled: false,
+      backupScheduleCron: '0 2 * * *'
+    },
+  });
+
+  console.log('✅ System configuration created successfully');
+
+  // Create some sample FAQs
+  const faqs = [
+    {
+      question: 'How do I complete my self-appraisal?',
+      answer: 'Navigate to the Self-Appraisal section and follow the step-by-step process. Make sure to provide specific examples and evidence for each competency.',
+      role: 'ALL',
+      category: 'APPRAISAL',
+      isActive: true
+    },
+    {
+      question: 'What is the deadline for submitting appraisals?',
+      answer: 'Appraisal deadlines are set by your supervisor and HR department. Check your appraisal cycle details for specific dates.',
+      role: 'ALL',
+      category: 'DEADLINES',
+      isActive: true
+    },
+    {
+      question: 'How are performance ratings calculated?',
+      answer: 'Performance ratings are calculated using weighted competencies and behavioral indicators. The system automatically computes your final score.',
+      role: 'ALL',
+      category: 'SCORING',
+      isActive: true
+    }
+  ];
+
+  for (const faq of faqs) {
+    await prisma.fAQ.upsert({
+      where: { 
+        id: `faq-${faq.question.toLowerCase().replace(/\s+/g, '-')}`
+      },
+      update: {},
+      create: {
+        id: `faq-${faq.question.toLowerCase().replace(/\s+/g, '-')}`,
+        ...faq
+      },
+    });
+  }
+
+  console.log('✅ FAQs created successfully');
+
+  console.log('🎉 Database seeded successfully!');
+  console.log('\n📋 Demo Login Credentials:');
+  console.log('👤 Admin: admin@costaatt.edu.tt / P@ssw0rd!');
+  console.log('👤 Supervisor: john.doe@costaatt.edu.tt / password123');
+  console.log('👤 Employee: mike.johnson@costaatt.edu.tt / password123');
 }
 
-seedCompleteData();
+main()
+  .catch((e) => {
+    console.error('❌ Error seeding database:', e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });

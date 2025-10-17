@@ -1,54 +1,30 @@
 {
-  "name": "costaatt-hr-performance-gateway",
+  "name": "costaatt-hr-performance",
   "version": "1.0.0",
-  "description": "COSTAATT HR Performance Management Platform",
   "private": true,
   "workspaces": [
     "apps/api",
     "apps/web",
-    "apps/desktop",
     "packages/shared"
   ],
   "scripts": {
     "dev": "concurrently \"npm run dev:api\" \"npm run dev:web\"",
-    "dev:api": "npm run dev --workspace=@costaatt/api",
-    "dev:web": "npm run dev --workspace=@costaatt/web",
-    "build": "npm run build --workspaces",
-    "test": "npm run test --workspaces",
-    "test:e2e": "npm run test:e2e --workspace=@costaatt/web",
-    "lint": "npm run lint --workspaces",
-    "format": "prettier --write .",
-    "db:generate": "npm run db:generate --workspace=@costaatt/api",
-    "db:migrate": "npm run db:migrate --workspace=@costaatt/api",
-    "db:seed": "npm run db:seed --workspace=@costaatt/api",
-    "docker:up": "docker-compose up -d",
-    "docker:down": "docker-compose down",
-    "docker:logs": "docker-compose logs -f",
-    "desktop:build": "node apps/desktop/build-desktop.js",
-    "desktop:win": "npm run desktop:build && npm run build-win --workspace=costaatt-hr-desktop",
-    "desktop:mac": "npm run desktop:build && npm run build-mac --workspace=costaatt-hr-desktop",
-    "desktop:linux": "npm run desktop:build && npm run build-linux --workspace=costaatt-hr-desktop"
+    "dev:api": "cd apps/api && node src/simple-server.js",
+    "dev:web": "cd apps/web && npm run dev",
+    "build": "npm run build --workspace=@costaatt/web",
+    "db:generate": "cd apps/api && npx prisma generate",
+    "db:push": "cd apps/api && npx prisma db push",
+    "db:seed": "cd apps/api && node scripts/seed-data.js"
   },
   "devDependencies": {
-    "@typescript-eslint/eslint-plugin": "^6.0.0",
-    "@typescript-eslint/parser": "^6.0.0",
-    "concurrently": "^8.2.0",
-    "eslint": "^8.45.0",
-    "eslint-config-prettier": "^9.0.0",
-    "eslint-plugin-prettier": "^5.0.0",
-    "husky": "^8.0.3",
-    "lint-staged": "^14.0.1",
-    "prettier": "^3.0.0",
-    "typescript": "^5.1.6"
+    "concurrently": "^8.2.2"
   },
-  "lint-staged": {
-    "*.{ts,tsx,js,jsx}": [
-      "eslint --fix",
-      "prettier --write"
-    ],
-    "*.{json,md,yml,yaml}": [
-      "prettier --write"
-    ]
+  "dependencies": {
+    "express-jwt": "^8.5.1",
+    "express-session": "^1.18.2",
+    "jwks-rsa": "^3.2.0",
+    "passport": "^0.7.0",
+    "passport-azure-ad": "^4.3.5",
+    "passport-oauth2": "^1.8.0"
   }
 }
-

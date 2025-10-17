@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Login - COSTAATT HR</title>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            margin: 50px;
+            background: #f8f9fa;
+        }
+        .container { 
+            max-width: 600px; 
+            margin: 0 auto; 
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 { color: #333; margin-bottom: 20px; }
+        .test-section { 
+            margin: 20px 0; 
+            padding: 20px; 
+            border: 1px solid #ddd; 
+            border-radius: 8px;
+        }
+        input, button { 
+            width: 100%; 
+            padding: 12px; 
+            margin: 10px 0; 
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        button { 
+            background: #007bff; 
+            color: white; 
+            border: none; 
+            cursor: pointer; 
+            font-weight: 600;
+        }
+        button:hover { background: #0056b3; }
+        .result { 
+            margin-top: 20px; 
+            padding: 15px; 
+            background: #f8f9fa; 
+            border: 1px solid #dee2e6; 
+            border-radius: 4px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 14px;
+        }
+        .success { background: #d4edda; border-color: #c3e6cb; color: #155724; }
+        .error { background: #f8d7da; border-color: #f5c6cb; color: #721c24; }
+        .demo-credentials {
+            background: #e7f3ff;
+            border: 1px solid #b3d9ff;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .demo-credentials h3 { margin: 0 0 10px 0; color: #0066cc; }
+        .demo-credentials p { margin: 5px 0; cursor: pointer; padding: 5px; border-radius: 3px; }
+        .demo-credentials p:hover { background: #cce7ff; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 COSTAATT HR - Login Test</h1>
+        
+        <div class="test-section">
+            <h2>API Connection Test</h2>
+            <button onclick="testAPI()">Test API Health</button>
+            <div id="apiResult" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>Login Test</h2>
+            <input type="email" id="email" placeholder="Email" value="admin@costaatt.edu.tt">
+            <input type="password" id="password" placeholder="Password" value="P@ssw0rd!">
+            <button onclick="testLogin()">Test Login</button>
+            <div id="loginResult" class="result"></div>
+        </div>
+
+        <div class="demo-credentials">
+            <h3>Demo Credentials (Click to auto-fill):</h3>
+            <p onclick="fillCredentials('admin@costaatt.edu.tt', 'P@ssw0rd!')">
+                <strong>Admin:</strong> admin@costaatt.edu.tt / P@ssw0rd!
+            </p>
+            <p onclick="fillCredentials('john.doe@costaatt.edu.tt', 'password123')">
+                <strong>Supervisor:</strong> john.doe@costaatt.edu.tt / password123
+            </p>
+            <p onclick="fillCredentials('mike.johnson@costaatt.edu.tt', 'password123')">
+                <strong>Employee:</strong> mike.johnson@costaatt.edu.tt / password123
+            </p>
+        </div>
+
+        <div class="test-section">
+            <h2>Browser Console</h2>
+            <p>Open your browser's Developer Tools (F12) and check the Console tab for any errors.</p>
+            <button onclick="testConsole()">Test Console Logging</button>
+        </div>
+    </div>
+
+    <script>
+        function fillCredentials(email, password) {
+            document.getElementById('email').value = email;
+            document.getElementById('password').value = password;
+        }
+
+        function showResult(elementId, message, isError = false) {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.className = `result ${isError ? 'error' : 'success'}`;
+        }
+
+        async function testAPI() {
+            const result = document.getElementById('apiResult');
+            result.textContent = 'Testing API connection...';
+            result.className = 'result';
+            
+            try {
+                const response = await fetch('http://localhost:3000/health');
+                const data = await response.json();
+                showResult('apiResult', `✅ API is working!\nStatus: ${data.status}\nTimestamp: ${data.timestamp}`);
+            } catch (error) {
+                showResult('apiResult', `❌ API Error: ${error.message}`, true);
+            }
+        }
+
+        async function testLogin() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const result = document.getElementById('loginResult');
+            
+            result.textContent = 'Testing login...';
+            result.className = 'result';
+            
+            try {
+                console.log('Attempting login with:', { email, password: '***' });
+                
+                const response = await fetch('http://localhost:3000/auth/login', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+                
+                console.log('Response status:', response.status);
+                console.log('Response headers:', [...response.headers.entries()]);
+                
+                const data = await response.json();
+                console.log('Response data:', data);
+                
+                if (data.success) {
+                    showResult('loginResult', `✅ Login successful!\nToken: ${data.data.accessToken.substring(0, 50)}...\nUser: ${data.data.user.firstName} ${data.data.user.lastName}\nRole: ${data.data.user.role}`);
+                } else {
+                    showResult('loginResult', `❌ Login failed: ${data.message}`, true);
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                showResult('loginResult', `❌ Network Error: ${error.message}\n\nThis usually means:\n1. API server is not running\n2. CORS issues\n3. Network connectivity problems`, true);
+            }
+        }
+
+        function testConsole() {
+            console.log('🔧 Console test - this message should appear in browser console');
+            console.warn('⚠️ Warning test');
+            console.error('❌ Error test');
+            alert('Check the browser console (F12) to see the test messages');
+        }
+
+        // Auto-test API on page load
+        window.onload = function() {
+            testAPI();
+        };
+    </script>
+</body>
+</html>

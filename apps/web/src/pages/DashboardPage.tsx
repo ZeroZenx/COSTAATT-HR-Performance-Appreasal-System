@@ -1,308 +1,278 @@
+import { Layout } from '../components/Layout';
+import { Header } from '../components/Header';
+import { Button } from '../components/ui/button';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
-import { LoadingSpinner } from '../components/ui/loading-spinner';
-import { FileText, Users, BarChart3, Clock, CheckCircle, Plus, AlertTriangle } from 'lucide-react';
-import { usePermissions } from '../components/RoleGuard';
-import { RoleGuard } from '../components/RoleGuard';
-import { SelfAppraisalWidget } from '../components/SelfAppraisalWidget';
+import { useAuth } from '../contexts/AuthContext';
+import { EmployeeDashboard } from './EmployeeDashboard';
+import { SupervisorDashboard } from './SupervisorDashboard';
+import { 
+  FileText, 
+  Clock, 
+  Users, 
+  CheckCircle, 
+  Plus, 
+  BarChart3, 
+  MessageCircle,
+  Eye
+} from 'lucide-react';
 
 export function DashboardPage() {
   const navigate = useNavigate();
-  const { getDataScope, isEmployee, isSupervisor, isHRAdmin } = usePermissions();
-  
-  const dataScope = getDataScope();
-  
-  // Fetch dashboard stats
-  const { data: stats, isLoading: statsLoading } = useQuery({
-    queryKey: ['dashboard-stats'],
-    queryFn: async () => {
-      const response = await fetch('http://localhost:3000/dashboard/stats');
-      if (!response.ok) throw new Error('Failed to fetch stats');
-      return response.json();
-    },
-  });
+  const { user } = useAuth();
 
-  // Fetch recent appraisals
-  const { data: recentAppraisals, isLoading: recentLoading } = useQuery({
-    queryKey: ['dashboard-recent'],
-    queryFn: async () => {
-      const response = await fetch('http://localhost:3000/dashboard/recent');
-      if (!response.ok) throw new Error('Failed to fetch recent appraisals');
-      return response.json();
-    },
-  });
-
-  const isLoading = statsLoading || recentLoading;
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <LoadingSpinner size="lg" />
-      </div>
-    );
+  // Role-based dashboard routing
+  if (user?.role === 'EMPLOYEE') {
+    return <EmployeeDashboard />;
   }
 
-  // Calculate pending actions based on role
-  const pendingActions = recentAppraisals?.filter(a => 
-    (isEmployee && a.status === 'DRAFT') ||
-    (isSupervisor && a.status === 'MANAGER_REVIEW') ||
-    (isHRAdmin && a.status === 'CALIBRATED')
-  ).length || 0;
+  if (user?.role === 'SUPERVISOR') {
+    return <SupervisorDashboard />;
+  }
+
+  // Admin and Final Approver dashboard (existing functionality)
+  // Fetch real appraisal data
+  const { data: appraisals = [], isLoading } = useQuery({
+    queryKey: ['appraisals'],
+    queryFn: async () => {
+      const response = await fetch('http://10.2.1.27:3000/appraisals');
+      if (!response.ok) {
+        throw new Error('Failed to fetch appraisals');
+      }
+      const data = await response.json();
+      return data.data || [];
+    }
+  });
+
+  // Calculate stats
+  const totalAppraisals = appraisals.length;
+  const draftCount = appraisals.filter((a: any) => a.status === 'DRAFT').length;
+  const inReviewCount = appraisals.filter((a: any) => a.status === 'IN_REVIEW').length;
+  const completedCount = appraisals.filter((a: any) => a.status === 'COMPLETED').length;
+  // const awaitingHrCount = appraisals.filter((a: any) => a.status === 'AWAITING_HR').length;
+  // const returnedCount = appraisals.filter((a: any) => a.status === 'RETURNED_TO_MANAGER').length;
+
+  const handleReviewAppraisal = (appraisalId: string) => {
+    navigate(`/appraisals/${appraisalId}/review`);
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'DRAFT':
+        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">Draft</span>;
+      case 'IN_REVIEW':
+        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">In Review</span>;
+      case 'AWAITING_HR':
+        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">Awaiting HR</span>;
+      case 'COMPLETED':
+        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Completed</span>;
+      case 'RETURNED_TO_MANAGER':
+        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">Returned</span>;
+      default:
+        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">{status}</span>;
+    }
+  };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-600">Welcome to the COSTAATT HR Performance Gateway</p>
-      </div>
+    <Layout>
+      <div className="min-h-screen bg-gray-50">
+        <Header />
+        
+        <div className="p-6">
+          {/* Header */}
+          <div className="mb-8 sticky top-0 bg-white z-30 pb-4">
+            <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+            <p className="mt-2 text-gray-600">Welcome to the COSTAATT HR Performance Gateway</p>
+          </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Appraisals</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats?.totalAppraisals || 0}</div>
-            <p className="text-xs text-muted-foreground">
-              All performance appraisals
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Draft</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats?.draftAppraisals || 0}</div>
-            <p className="text-xs text-muted-foreground">
-              In progress
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">In Review</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats?.submittedAppraisals || 0}</div>
-            <p className="text-xs text-muted-foreground">
-              Awaiting review
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Completed</CardTitle>
-            <CheckCircle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats?.completedAppraisals || 0}</div>
-            <p className="text-xs text-muted-foreground">
-              Finished appraisals
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Recent Appraisals */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Appraisals</CardTitle>
-            <CardDescription>
-              Latest performance appraisals in the system
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {!recentAppraisals || recentAppraisals.length === 0 ? (
-              <p className="text-gray-500 text-center py-4">No appraisals found</p>
-            ) : (
-              <div className="space-y-4">
-                {recentAppraisals.map((appraisal) => (
-                  <div key={appraisal.id} className="flex items-center justify-between p-3 border rounded-lg">
-                    <div>
-                      <p className="font-medium">
-                        {appraisal.employee?.user?.firstName} {appraisal.employee?.user?.lastName}
-                      </p>
-                      <p className="text-sm text-gray-500">
-                        {appraisal.template?.name} • {appraisal.cycle?.name}
-                      </p>
-                      <p className="text-xs text-gray-400">
-                        {appraisal.employee?.division} • {appraisal.employee?.employmentType}
-                      </p>
-                      {appraisal.updatedAt && (
-                        <p className="text-xs text-gray-400">
-                          Updated: {new Date(appraisal.updatedAt).toLocaleDateString()}
-                        </p>
-                      )}
+          {/* Top Metrics Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div className="bg-white overflow-hidden shadow rounded-lg cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/appraisals')}>
+              <div className="p-5">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
+                      <FileText className="w-5 h-5 text-white" />
                     </div>
-                    <div className="text-right">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        appraisal.status === 'DRAFT' ? 'bg-yellow-100 text-yellow-800' :
-                        appraisal.status === 'IN_REVIEW' ? 'bg-blue-100 text-blue-800' :
-                        appraisal.status === 'REVIEWED_MANAGER' ? 'bg-purple-100 text-purple-800' :
-                        appraisal.status === 'FINAL_REVIEW' ? 'bg-orange-100 text-orange-800' :
-                        appraisal.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
-                        'bg-gray-100 text-gray-800'
-                      }`}>
-                        {appraisal.status.replace('_', ' ')}
-                      </span>
-                      {appraisal.finalScore && (
-                        <p className="text-sm text-gray-500 mt-1">
-                          Score: {appraisal.finalScore.toFixed(1)}
-                        </p>
-                      )}
-                      {/* Action Buttons */}
-                      <div className="mt-2 space-x-2">
-                        {(appraisal.status === 'IN_REVIEW' || appraisal.status === 'REVIEWED_MANAGER') && (
-                          <button
-                            onClick={() => navigate(`/appraisals/${appraisal.id}/review`)}
-                            className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
-                          >
-                            Review
-                          </button>
-                        )}
-                        {appraisal.status === 'REVIEWED_MANAGER' && (
-                          <button
-                            onClick={() => navigate(`/appraisals/${appraisal.id}/finalize`)}
-                            className="px-3 py-1 bg-purple-600 text-white text-xs rounded hover:bg-purple-700"
-                          >
-                            Finalize
-                          </button>
-                        )}
+                  </div>
+                  <div className="ml-5 w-0 flex-1">
+                    <dl>
+                      <dt className="text-sm font-medium text-gray-500 truncate">Total Appraisals</dt>
+                      <dd className="text-2xl font-bold text-gray-900">{totalAppraisals}</dd>
+                      <dd className="text-sm text-gray-500">All time</dd>
+                    </dl>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white overflow-hidden shadow rounded-lg cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/appraisals?status=draft')}>
+              <div className="p-5">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <div className="w-8 h-8 bg-yellow-500 rounded-lg flex items-center justify-center">
+                      <Clock className="w-5 h-5 text-white" />
+                    </div>
+                  </div>
+                  <div className="ml-5 w-0 flex-1">
+                    <dl>
+                      <dt className="text-sm font-medium text-gray-500 truncate">Draft</dt>
+                      <dd className="text-2xl font-bold text-gray-900">{draftCount}</dd>
+                      <dd className="text-sm text-gray-500">In progress</dd>
+                    </dl>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white overflow-hidden shadow rounded-lg cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/appraisals?status=in_review')}>
+              <div className="p-5">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <div className="w-8 h-8 bg-orange-500 rounded-lg flex items-center justify-center">
+                      <Users className="w-5 h-5 text-white" />
+                    </div>
+                  </div>
+                  <div className="ml-5 w-0 flex-1">
+                    <dl>
+                      <dt className="text-sm font-medium text-gray-500 truncate">In Review</dt>
+                      <dd className="text-2xl font-bold text-gray-900">{inReviewCount}</dd>
+                      <dd className="text-sm text-gray-500">Pending approval</dd>
+                    </dl>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white overflow-hidden shadow rounded-lg cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/appraisals?status=completed')}>
+              <div className="p-5">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center">
+                      <CheckCircle className="w-5 h-5 text-white" />
+                    </div>
+                  </div>
+                  <div className="ml-5 w-0 flex-1">
+                    <dl>
+                      <dt className="text-sm font-medium text-gray-500 truncate">Completed</dt>
+                      <dd className="text-2xl font-bold text-gray-900">{completedCount}</dd>
+                      <dd className="text-sm text-gray-500">Finished</dd>
+                    </dl>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Recent Appraisals */}
+          <div className="bg-white shadow rounded-lg mb-8">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h3 className="text-lg font-medium text-gray-900">Recent Appraisals</h3>
+            </div>
+            <div className="divide-y divide-gray-200">
+              {isLoading ? (
+                <div className="px-6 py-4 text-center text-gray-500">Loading appraisals...</div>
+              ) : appraisals.length === 0 ? (
+                <div className="px-6 py-4 text-center text-gray-500">No appraisals found</div>
+              ) : (
+                appraisals.slice(0, 5).map((appraisal: any) => (
+                  <div key={appraisal.id} className="px-6 py-4 flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => handleReviewAppraisal(appraisal.id)}>
+                    <div className="flex items-center">
+                      <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center">
+                        <span className="text-sm font-medium text-gray-700">
+                          {(appraisal.employee?.user?.firstName || appraisal.employee?.firstName)?.[0] || 'E'}{(appraisal.employee?.user?.lastName || appraisal.employee?.lastName)?.[0] || 'M'}
+                        </span>
+                      </div>
+                      <div className="ml-4">
+                        <div className="text-sm font-medium text-gray-900">
+                          {appraisal.employee?.user?.firstName || appraisal.employee?.firstName} {appraisal.employee?.user?.lastName || appraisal.employee?.lastName}
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          {appraisal.template?.name} - {appraisal.cycle?.name}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
-            <CardDescription>
-              Common tasks and shortcuts
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {/* Create New Appraisal - Only for Supervisors and HR */}
-              <RoleGuard action="create" resource="appraisal">
-                <button 
-                  onClick={() => navigate('/appraisals/new')}
-                  className="w-full text-left p-3 border rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  <div className="flex items-center space-x-3">
-                    <Plus className="h-5 w-5 text-primary" />
-                    <div>
-                      <p className="font-medium">Create New Appraisal</p>
-                      <p className="text-sm text-gray-500">Start a new performance appraisal</p>
+                    <div className="flex items-center space-x-4">
+                      {getStatusBadge(appraisal.status)}
+                      {appraisal.status === 'IN_REVIEW' && (
+                        <Button
+                          onClick={() => handleReviewAppraisal(appraisal.id)}
+                          className="bg-blue-600 hover:bg-blue-700 text-white"
+                          size="sm"
+                        >
+                          <Eye className="w-4 h-4 mr-1" />
+                          Review
+                        </Button>
+                      )}
+                      {appraisal.status === 'COMPLETED' && (
+                        <Button variant="outline" size="sm">
+                          <Eye className="w-4 h-4 mr-1" />
+                          View
+                        </Button>
+                      )}
                     </div>
                   </div>
-                </button>
-              </RoleGuard>
-
-              {/* View Employees - Supervisors and HR only */}
-              <RoleGuard action="view" resource="employee" context={{ scope: 'team' }}>
-                <button 
-                  onClick={() => navigate('/employees')}
-                  className="w-full text-left p-3 border rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  <div className="flex items-center space-x-3">
-                    <Users className="h-5 w-5 text-primary" />
-                    <div>
-                      <p className="font-medium">
-                        {isSupervisor ? 'View Team' : 'View Employees'}
-                      </p>
-                      <p className="text-sm text-gray-500">
-                        {isSupervisor ? 'Manage team members' : 'Manage employee records'}
-                      </p>
-                    </div>
-                  </div>
-                </button>
-              </RoleGuard>
-
-              {/* View Reports - Supervisors and HR only */}
-              <RoleGuard action="view" resource="report">
-                <button 
-                  onClick={() => navigate('/reports')}
-                  className="w-full text-left p-3 border rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  <div className="flex items-center space-x-3">
-                    <BarChart3 className="h-5 w-5 text-primary" />
-                    <div>
-                      <p className="font-medium">
-                        {isSupervisor ? 'Team Reports' : 'View Reports'}
-                      </p>
-                      <p className="text-sm text-gray-500">
-                        {isSupervisor ? 'Team performance analytics' : 'Performance analytics and insights'}
-                      </p>
-                    </div>
-                  </div>
-                </button>
-              </RoleGuard>
-
-              {/* Employee-specific actions */}
-              {isEmployee && (
-                <button 
-                  onClick={() => navigate('/appraisals')}
-                  className="w-full text-left p-3 border rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  <div className="flex items-center space-x-3">
-                    <FileText className="h-5 w-5 text-primary" />
-                    <div>
-                      <p className="font-medium">My Appraisals</p>
-                      <p className="text-sm text-gray-500">View your performance appraisals</p>
-                    </div>
-                  </div>
-                </button>
-              )}
-
-              {/* Pending Actions for all roles */}
-              {pendingActions > 0 && (
-                <button 
-                  onClick={() => navigate('/appraisals?filter=pending')}
-                  className="w-full text-left p-3 border rounded-lg hover:bg-gray-50 transition-colors bg-yellow-50 border-yellow-200"
-                >
-                  <div className="flex items-center space-x-3">
-                    <AlertTriangle className="h-5 w-5 text-yellow-600" />
-                    <div>
-                      <p className="font-medium">Pending Actions ({pendingActions})</p>
-                      <p className="text-sm text-gray-500">
-                        {isEmployee ? 'Your appraisals need attention' : 
-                         isSupervisor ? 'Team appraisals need your review' : 
-                         'Appraisals need HR review'}
-                      </p>
-                    </div>
-                  </div>
-                </button>
+                ))
               )}
             </div>
-          </CardContent>
-        </Card>
-      </div>
+          </div>
 
-      {/* Self-Appraisal Widget - Show for all users */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-1">
-          <SelfAppraisalWidget cycleId="current" />
-        </div>
-        <div className="lg:col-span-2">
-          {/* Additional dashboard content can go here */}
+          {/* Quick Actions */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div 
+              className="bg-white p-6 rounded-lg shadow cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => navigate('/appraisals/new-quick')}
+            >
+              <div className="flex items-center">
+                <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                  <Plus className="w-6 h-6 text-purple-600" />
+                </div>
+                <div className="ml-4">
+                  <h3 className="text-lg font-medium text-gray-900">Create New Appraisal</h3>
+                  <p className="text-sm text-gray-500">Start a new performance review</p>
+                </div>
+              </div>
+            </div>
+
+            <div 
+              className="bg-white p-6 rounded-lg shadow cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => navigate('/settings?tab=users')}
+            >
+              <div className="flex items-center">
+                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <Users className="w-6 h-6 text-blue-600" />
+                </div>
+                <div className="ml-4">
+                  <h3 className="text-lg font-medium text-gray-900">View Employees</h3>
+                  <p className="text-sm text-gray-500">Manage staff directory</p>
+                </div>
+              </div>
+            </div>
+
+            <div 
+              className="bg-white p-6 rounded-lg shadow cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => navigate('/reports')}
+            >
+              <div className="flex items-center">
+                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                  <BarChart3 className="w-6 h-6 text-green-600" />
+                </div>
+                <div className="ml-4">
+                  <h3 className="text-lg font-medium text-gray-900">View Reports</h3>
+                  <p className="text-sm text-gray-500">Analytics and insights</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Floating Action Button */}
+          <div className="fixed bottom-6 right-6">
+            <button className="w-12 h-12 bg-purple-600 rounded-full flex items-center justify-center shadow-lg hover:bg-purple-700 transition-colors">
+              <MessageCircle className="w-6 h-6 text-white" />
+            </button>
+          </div>
         </div>
       </div>
-
-    </div>
+    </Layout>
   );
 }
-

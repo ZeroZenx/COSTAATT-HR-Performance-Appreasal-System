@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Appraisal Requires Changes</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px 8px 0 0;
+            margin: -30px -30px 30px -30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+        .content {
+            margin-bottom: 30px;
+        }
+        .info-box {
+            background-color: #fff5f5;
+            border-left: 4px solid #ff6b6b;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .info-row {
+            display: flex;
+            margin-bottom: 10px;
+        }
+        .info-label {
+            font-weight: bold;
+            width: 120px;
+            color: #555;
+        }
+        .info-value {
+            flex: 1;
+        }
+        .comments-box {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .cta-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            margin: 20px 0;
+        }
+        .footer {
+            border-top: 1px solid #eee;
+            padding-top: 20px;
+            font-size: 0.9em;
+            color: #666;
+            text-align: center;
+        }
+        .status-badge {
+            display: inline-block;
+            background-color: #ffc107;
+            color: #212529;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>⚠️ Appraisal Requires Changes</h1>
+        </div>
+        
+        <div class="content">
+            <p>Hello <strong>{{recipientName}}</strong>,</p>
+            
+            <p>Your performance appraisal has been returned for revision. Please review the feedback below and make the necessary changes.</p>
+            
+            <div class="info-box">
+                <div class="info-row">
+                    <div class="info-label">Employee:</div>
+                    <div class="info-value">{{employeeName}}</div>
+                </div>
+                <div class="info-row">
+                    <div class="info-label">Position:</div>
+                    <div class="info-value">{{employeeTitle}}</div>
+                </div>
+                <div class="info-row">
+                    <div class="info-label">Department:</div>
+                    <div class="info-value">{{employeeDept}}</div>
+                </div>
+                <div class="info-row">
+                    <div class="info-label">Appraisal Period:</div>
+                    <div class="info-value">{{periodStart}} - {{periodEnd}}</div>
+                </div>
+                <div class="info-row">
+                    <div class="info-label">Status:</div>
+                    <div class="info-value">
+                        <span class="status-badge">{{status}}</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="comments-box">
+                <h3>📝 Feedback from {{reviewerName}}:</h3>
+                <p>{{reviewerComments}}</p>
+            </div>
+            
+            <p>Please log in to the system to review the specific areas that need attention and resubmit your appraisal.</p>
+            
+            <div style="text-align: center;">
+                <a href="{{loginUrl}}" class="cta-button">Review & Resubmit Appraisal</a>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p><strong>COSTAATT HR Performance Gateway</strong></p>
+            <p>This is an automated message. Please do not reply to this email.</p>
+            <p>For support, contact HR at hr@costaatt.edu.tt</p>
+        </div>
+    </div>
+</body>
+</html>

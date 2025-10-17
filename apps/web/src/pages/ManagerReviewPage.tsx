@@ -48,8 +48,18 @@ export function ManagerReviewPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
-      if (!response.ok) throw new Error('Failed to save draft');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to save draft');
+      }
       return response.json();
+    },
+    onSuccess: () => {
+      console.log('Draft saved successfully');
+    },
+    onError: (error) => {
+      console.error('Error saving draft:', error);
+      alert(`Failed to save draft: ${error.message}`);
     },
   });
 
@@ -61,17 +71,29 @@ export function ManagerReviewPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
-      if (!response.ok) throw new Error('Failed to submit review');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to submit review');
+      }
       return response.json();
     },
     onSuccess: () => {
+      console.log('Review submitted successfully');
       queryClient.invalidateQueries({ queryKey: ['dashboard-recent'] });
       navigate('/dashboard');
+    },
+    onError: (error) => {
+      console.error('Error submitting review:', error);
+      alert(`Failed to submit review: ${error.message}`);
     },
   });
 
   const handleSaveDraft = () => {
-    saveDraftMutation.mutate(formData);
+    saveDraftMutation.mutate(formData, {
+      onSuccess: () => {
+        alert('Draft saved successfully!');
+      }
+    });
   };
 
   const handleSubmit = () => {

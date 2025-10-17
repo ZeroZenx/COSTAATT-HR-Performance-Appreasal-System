@@ -460,7 +460,7 @@ export function AppraisalBuilder({
               <CardContent className="space-y-4">
                 <div className="text-center">
                   <div className="text-3xl font-bold text-primary">
-                    {scores.finalScore.toFixed(1)}
+                    {((scores.finalScore / 5.0) * 100).toFixed(1)}%
                   </div>
                   <div className="text-sm text-gray-600">
                     {scores.ratingBand}
@@ -480,7 +480,7 @@ export function AppraisalBuilder({
                       <span className="truncate">{section.title}</span>
                       <div className="flex items-center space-x-2">
                         <span className="font-medium">
-                          {scores.sectionScores[section.key]?.toFixed(1) || '0.0'}
+                          {((scores.sectionScores[section.key] || 0) / 5.0 * 100).toFixed(1)}%
                         </span>
                         <Badge variant="outline" className="text-xs">
                           {(section.weight * 100).toFixed(0)}%

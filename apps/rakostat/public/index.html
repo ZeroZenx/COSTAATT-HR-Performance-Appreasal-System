@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rakostat - COSTAATT Room Booking System</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1e40af 0%, #059669 100%);
+            min-height: 100vh;
+        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        .header { background: white; border-radius: 15px; padding: 2rem; margin-bottom: 2rem; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        .nav { display: flex; gap: 1rem; margin-bottom: 2rem; }
+        .nav button { padding: 0.75rem 1.5rem; border: none; border-radius: 8px; background: #1e40af; color: white; cursor: pointer; transition: all 0.3s; }
+        .nav button:hover { background: #1e3a8a; transform: translateY(-2px); }
+        .nav button.active { background: #059669; }
+        .content { background: white; border-radius: 15px; padding: 2rem; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        .login-form { max-width: 400px; margin: 2rem auto; }
+        .form-group { margin-bottom: 1rem; }
+        .form-group label { display: block; margin-bottom: 0.5rem; font-weight: 600; color: #374151; }
+        .form-group input, .form-group select { width: 100%; padding: 0.75rem; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 1rem; }
+        .form-group input:focus, .form-group select:focus { outline: none; border-color: #1e40af; }
+        .btn { padding: 0.75rem 1.5rem; border: none; border-radius: 8px; background: #1e40af; color: white; cursor: pointer; font-size: 1rem; transition: all 0.3s; }
+        .btn:hover { background: #1e3a8a; transform: translateY(-2px); }
+        .btn-success { background: #059669; }
+        .btn-success:hover { background: #047857; }
+        .btn-danger { background: #dc2626; }
+        .btn-danger:hover { background: #b91c1c; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; }
+        .card { background: #f8fafc; border-radius: 10px; padding: 1.5rem; border-left: 4px solid #1e40af; }
+        .card h3 { color: #1e40af; margin-bottom: 1rem; }
+        .room-card { background: white; border: 2px solid #e5e7eb; border-radius: 10px; padding: 1.5rem; transition: all 0.3s; }
+        .room-card:hover { border-color: #1e40af; transform: translateY(-2px); box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        .booking-form { background: #f8fafc; border-radius: 10px; padding: 1.5rem; margin-top: 1rem; }
+        .hidden { display: none; }
+        .alert { padding: 1rem; border-radius: 8px; margin-bottom: 1rem; }
+        .alert-success { background: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
+        .alert-error { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+        .stat-card { background: linear-gradient(135deg, #1e40af, #3b82f6); color: white; padding: 1.5rem; border-radius: 10px; text-align: center; }
+        .stat-card h3 { font-size: 2rem; margin-bottom: 0.5rem; }
+        .filter-bar { background: #f8fafc; padding: 1rem; border-radius: 10px; margin-bottom: 1rem; display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; }
+        .filter-bar select, .filter-bar input { padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 5px; }
+        .booking-item { background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 1rem; margin-bottom: 0.5rem; }
+        .booking-item.confirmed { border-left: 4px solid #059669; }
+        .booking-item.pending { border-left: 4px solid #f59e0b; }
+        .booking-item.cancelled { border-left: 4px solid #dc2626; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 style="color: #1e40af; margin-bottom: 1rem;">🏢 Rakostat - COSTAATT Room Booking System</h1>
+            <div class="nav">
+                <button onclick="showSection('login')" id="login-tab">Login</button>
+                <button onclick="showSection('rooms')" id="rooms-tab" class="hidden">Rooms</button>
+                <button onclick="showSection('bookings')" id="bookings-tab" class="hidden">My Bookings</button>
+                <button onclick="showSection('admin')" id="admin-tab" class="hidden">Admin</button>
+                <button onclick="logout()" id="logout-btn" class="hidden" style="background: #dc2626;">Logout</button>
+            </div>
+        </div>
+
+        <!-- Login Section -->
+        <div id="login-section" class="content">
+            <div class="login-form">
+                <h2 style="text-align: center; margin-bottom: 2rem; color: #1e40af;">Login to Rakostat</h2>
+                <form onsubmit="login(event)">
+                    <div class="form-group">
+                        <label>Email:</label>
+                        <input type="email" id="email" placeholder="your.email@costaatt.edu.tt" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Password:</label>
+                        <input type="password" id="password" placeholder="Enter your password" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Role:</label>
+                        <select id="role" required>
+                            <option value="">Select your role</option>
+                            <option value="admin">Administrator</option>
+                            <option value="registry">Registry Department</option>
+                            <option value="facilities">Facilities Department</option>
+                            <option value="dean">Campus Dean</option>
+                            <option value="staff">General Staff</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn" style="width: 100%;">Login</button>
+                </form>
+                <div style="margin-top: 2rem; padding: 1rem; background: #f0f9ff; border-radius: 8px; border-left: 4px solid #1e40af;">
+                    <h4 style="color: #1e40af; margin-bottom: 0.5rem;">Demo Credentials:</h4>
+                    <p><strong>Admin:</strong> admin@costaatt.edu.tt / admin123</p>
+                    <p><strong>Staff:</strong> staff@costaatt.edu.tt / staff123</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Rooms Section -->
+        <div id="rooms-section" class="content hidden">
+            <h2 style="color: #1e40af; margin-bottom: 1rem;">Available Rooms</h2>
+            <div class="filter-bar">
+                <select id="campus-filter" onchange="filterRooms()">
+                    <option value="">All Campuses</option>
+                    <option value="CITY_CAMPUS">City Campus</option>
+                    <option value="NORTH_LEARNING_CENTER">North Learning Center</option>
+                    <option value="CHAGUANAS_CAMPUS">Chaguanas Campus</option>
+                    <option value="SAN_FERNANDO_CAMPUS">San Fernando Campus</option>
+                    <option value="TOBAGO_CAMPUS">Tobago Campus</option>
+                </select>
+                <select id="capacity-filter" onchange="filterRooms()">
+                    <option value="">Any Capacity</option>
+                    <option value="10">10+ people</option>
+                    <option value="20">20+ people</option>
+                    <option value="30">30+ people</option>
+                    <option value="50">50+ people</option>
+                    <option value="100">100+ people</option>
+                </select>
+                <input type="text" id="tech-filter" placeholder="Search by technology..." onkeyup="filterRooms()">
+            </div>
+            <div id="rooms-grid" class="grid"></div>
+        </div>
+
+        <!-- Bookings Section -->
+        <div id="bookings-section" class="content hidden">
+            <h2 style="color: #1e40af; margin-bottom: 1rem;">My Bookings</h2>
+            <div id="bookings-list"></div>
+        </div>
+
+        <!-- Admin Section -->
+        <div id="admin-section" class="content hidden">
+            <h2 style="color: #1e40af; margin-bottom: 1rem;">Admin Dashboard</h2>
+            <div class="stats" id="admin-stats"></div>
+            <div class="grid">
+                <div class="card">
+                    <h3>All Bookings</h3>
+                    <div id="admin-bookings"></div>
+                </div>
+                <div class="card">
+                    <h3>Add New Room</h3>
+                    <form onsubmit="addRoom(event)">
+                        <div class="form-group">
+                            <label>Room Name:</label>
+                            <input type="text" id="room-name" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Campus:</label>
+                            <select id="room-campus" required>
+                                <option value="CITY_CAMPUS">City Campus</option>
+                                <option value="NORTH_LEARNING_CENTER">North Learning Center</option>
+                                <option value="CHAGUANAS_CAMPUS">Chaguanas Campus</option>
+                                <option value="SAN_FERNANDO_CAMPUS">San Fernando Campus</option>
+                                <option value="TOBAGO_CAMPUS">Tobago Campus</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Capacity:</label>
+                            <input type="number" id="room-capacity" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Technologies (comma-separated):</label>
+                            <input type="text" id="room-tech" placeholder="Projector, Smart Board, AC">
+                        </div>
+                        <button type="submit" class="btn">Add Room</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentUser = null;
+        let rooms = [];
+        let bookings = [];
+
+        // Login function
+        function login(event) {
+            event.preventDefault();
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const role = document.getElementById('role').value;
+
+            // Simple demo authentication
+            if ((email === 'admin@costaatt.edu.tt' && password === 'admin123') ||
+                (email === 'staff@costaatt.edu.tt' && password === 'staff123')) {
+                currentUser = { email, role, name: email.split('@')[0] };
+                showSection('rooms');
+                loadRooms();
+                loadBookings();
+                if (role === 'admin') {
+                    document.getElementById('admin-tab').classList.remove('hidden');
+                }
+                document.getElementById('login-section').classList.add('hidden');
+                document.getElementById('rooms-tab').classList.remove('hidden');
+                document.getElementById('bookings-tab').classList.remove('hidden');
+                document.getElementById('logout-btn').classList.remove('hidden');
+                showAlert('Login successful!', 'success');
+            } else {
+                showAlert('Invalid credentials. Use demo credentials provided.', 'error');
+            }
+        }
+
+        // Show sections
+        function showSection(section) {
+            document.querySelectorAll('.content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.nav button').forEach(el => el.classList.remove('active'));
+            
+            document.getElementById(section + '-section').classList.remove('hidden');
+            document.getElementById(section + '-tab').classList.add('active');
+            
+            if (section === 'admin') {
+                loadAdminData();
+            }
+        }
+
+        // Load rooms
+        async function loadRooms() {
+            try {
+                const response = await fetch('/api/rooms');
+                rooms = await response.json();
+                displayRooms(rooms);
+            } catch (error) {
+                console.error('Error loading rooms:', error);
+            }
+        }
+
+        // Display rooms
+        function displayRooms(roomsToShow) {
+            const grid = document.getElementById('rooms-grid');
+            grid.innerHTML = roomsToShow.map(room => `
+                <div class="room-card">
+                    <h3>${room.name}</h3>
+                    <p><strong>Campus:</strong> ${room.campus.replace(/_/g, ' ')}</p>
+                    <p><strong>Capacity:</strong> ${room.capacity} people</p>
+                    <p><strong>Technologies:</strong> ${room.technologies.join(', ')}</p>
+                    <button class="btn" onclick="showBookingForm('${room.id}')">Book This Room</button>
+                </div>
+            `).join('');
+        }
+
+        // Filter rooms
+        function filterRooms() {
+            const campus = document.getElementById('campus-filter').value;
+            const capacity = document.getElementById('capacity-filter').value;
+            const tech = document.getElementById('tech-filter').value.toLowerCase();
+            
+            let filtered = rooms.filter(room => {
+                if (campus && room.campus !== campus) return false;
+                if (capacity && room.capacity < parseInt(capacity)) return false;
+                if (tech && !room.technologies.some(t => t.toLowerCase().includes(tech))) return false;
+                return true;
+            });
+            
+            displayRooms(filtered);
+        }
+
+        // Show booking form
+        function showBookingForm(roomId) {
+            const room = rooms.find(r => r.id === roomId);
+            const form = `
+                <div class="booking-form">
+                    <h3>Book ${room.name}</h3>
+                    <form onsubmit="createBooking(event, '${roomId}')">
+                        <div class="form-group">
+                            <label>Event Title:</label>
+                            <input type="text" id="booking-title" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Description:</label>
+                            <input type="text" id="booking-desc">
+                        </div>
+                        <div class="form-group">
+                            <label>Start Date & Time:</label>
+                            <input type="datetime-local" id="booking-start" required>
+                        </div>
+                        <div class="form-group">
+                            <label>End Date & Time:</label>
+                            <input type="datetime-local" id="booking-end" required>
+                        </div>
+                        <button type="submit" class="btn">Create Booking</button>
+                        <button type="button" class="btn" style="background: #6b7280;" onclick="this.parentElement.parentElement.remove()">Cancel</button>
+                    </form>
+                </div>
+            `;
+            document.getElementById('rooms-grid').insertAdjacentHTML('afterbegin', form);
+        }
+
+        // Create booking
+        async function createBooking(event, roomId) {
+            event.preventDefault();
+            const title = document.getElementById('booking-title').value;
+            const description = document.getElementById('booking-desc').value;
+            const startTime = new Date(document.getElementById('booking-start').value).toISOString();
+            const endTime = new Date(document.getElementById('booking-end').value).toISOString();
+
+            try {
+                const response = await fetch('/api/bookings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title, description, startTime, endTime, roomId, userId: currentUser.email })
+                });
+
+                if (response.ok) {
+                    showAlert('Booking created successfully!', 'success');
+                    loadBookings();
+                    loadRooms();
+                } else {
+                    const error = await response.json();
+                    showAlert(error.error || 'Failed to create booking', 'error');
+                }
+            } catch (error) {
+                showAlert('Error creating booking', 'error');
+            }
+        }
+
+        // Load bookings
+        async function loadBookings() {
+            try {
+                const response = await fetch('/api/bookings');
+                bookings = await response.json();
+                displayBookings();
+            } catch (error) {
+                console.error('Error loading bookings:', error);
+            }
+        }
+
+        // Display bookings
+        function displayBookings() {
+            const list = document.getElementById('bookings-list');
+            list.innerHTML = bookings.map(booking => `
+                <div class="booking-item ${booking.status.toLowerCase()}">
+                    <h4>${booking.title}</h4>
+                    <p><strong>Room:</strong> ${rooms.find(r => r.id === booking.roomId)?.name || 'Unknown'}</p>
+                    <p><strong>Time:</strong> ${new Date(booking.startTime).toLocaleString()} - ${new Date(booking.endTime).toLocaleString()}</p>
+                    <p><strong>Status:</strong> ${booking.status}</p>
+                    ${booking.description ? `<p><strong>Description:</strong> ${booking.description}</p>` : ''}
+                    <button class="btn btn-danger" onclick="cancelBooking('${booking.id}')">Cancel</button>
+                </div>
+            `).join('');
+        }
+
+        // Cancel booking
+        async function cancelBooking(bookingId) {
+            if (confirm('Are you sure you want to cancel this booking?')) {
+                // In a real app, you'd call an API to cancel
+                showAlert('Booking cancelled', 'success');
+                loadBookings();
+            }
+        }
+
+        // Load admin data
+        async function loadAdminData() {
+            try {
+                const [statsResponse, bookingsResponse] = await Promise.all([
+                    fetch('/api/dashboard'),
+                    fetch('/api/bookings')
+                ]);
+                
+                const stats = await statsResponse.json();
+                const allBookings = await bookingsResponse.json();
+                
+                document.getElementById('admin-stats').innerHTML = `
+                    <div class="stat-card">
+                        <h3>${stats.totalRooms}</h3>
+                        <p>Total Rooms</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>${stats.totalBookings}</h3>
+                        <p>Total Bookings</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>${stats.activeBookings}</h3>
+                        <p>Active Bookings</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>${stats.totalUsers}</h3>
+                        <p>Total Users</p>
+                    </div>
+                `;
+                
+                document.getElementById('admin-bookings').innerHTML = allBookings.map(booking => `
+                    <div class="booking-item ${booking.status.toLowerCase()}">
+                        <h4>${booking.title}</h4>
+                        <p><strong>User:</strong> ${booking.userId}</p>
+                        <p><strong>Time:</strong> ${new Date(booking.startTime).toLocaleString()}</p>
+                        <p><strong>Status:</strong> ${booking.status}</p>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading admin data:', error);
+            }
+        }
+
+        // Add room (admin only)
+        async function addRoom(event) {
+            event.preventDefault();
+            const name = document.getElementById('room-name').value;
+            const campus = document.getElementById('room-campus').value;
+            const capacity = document.getElementById('room-capacity').value;
+            const tech = document.getElementById('room-tech').value.split(',').map(t => t.trim()).filter(t => t);
+
+            // In a real app, you'd call an API to add the room
+            showAlert('Room added successfully! (Demo mode)', 'success');
+            event.target.reset();
+        }
+
+        // Logout
+        function logout() {
+            currentUser = null;
+            document.getElementById('login-section').classList.remove('hidden');
+            document.getElementById('rooms-section').classList.add('hidden');
+            document.getElementById('bookings-section').classList.add('hidden');
+            document.getElementById('admin-section').classList.add('hidden');
+            document.getElementById('rooms-tab').classList.add('hidden');
+            document.getElementById('bookings-tab').classList.add('hidden');
+            document.getElementById('admin-tab').classList.add('hidden');
+            document.getElementById('logout-btn').classList.add('hidden');
+        }
+
+        // Show alerts
+        function showAlert(message, type) {
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type}`;
+            alert.textContent = message;
+            document.querySelector('.container').insertBefore(alert, document.querySelector('.header'));
+            setTimeout(() => alert.remove(), 3000);
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set default datetime values
+            const now = new Date();
+            const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+            document.getElementById('booking-start').value = tomorrow.toISOString().slice(0, 16);
+            document.getElementById('booking-end').value = new Date(tomorrow.getTime() + 60 * 60 * 1000).toISOString().slice(0, 16);
+        });
+    </script>
+</body>
+</html>

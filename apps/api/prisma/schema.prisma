@@ -3,8 +3,16 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
   url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  HR_ADMIN
+  SUPERVISOR
+  EMPLOYEE
+  EXECUTIVE
+  FINAL_APPROVER
 }
 
 enum AuthProvider {
@@ -15,184 +23,48 @@ enum AuthProvider {
 model User {
   id                       String                    @id @default(cuid())
   email                    String                    @unique
-  passwordHash             String?                   // Only for LOCAL users
-  role                     UserRole
+  passwordHash             String?                   
+  role                     UserRole                  // Primary role for backward compatibility
   firstName                String
   lastName                 String
   dept                     String
   title                    String
   managerId                String?
+  supervisorId             String?
+  supervisor               User?                     @relation("Supervisor", fields: [supervisorId], references: [id])
+  supervisees              User[]                    @relation("Supervisor")
   active                   Boolean                   @default(true)
-  azureId                  String?                   @unique
-  authProvider             AuthProvider              @default(SSO)
+  authProvider             AuthProvider              @default(LOCAL)
   emailVerifiedAt          DateTime?
-  mustChangePassword       Boolean                   @default(false)
+  mustChangePassword        Boolean                   @default(false)
+  passwordResetToken        String?
+  passwordResetExpires      DateTime?
   createdAt                DateTime                  @default(now())
   updatedAt                DateTime                  @updatedAt
   createdById              String?
   createdBy                User?                     @relation("UserCreatedBy", fields: [createdById], references: [id])
   createdUsers             User[]                    @relation("UserCreatedBy")
-  appraisalInstances       AppraisalInstance[]
-  appraisals               Appraisal[]
-  auditLogs                AuditLog[]
-  comments                 Comment[]
   employee                 Employee?
-  evidence                 Evidence[]
-  finalReviewsAsDivisional FinalReview[]             @relation("FinalReviewDivisional")
-  finalReviewsAsEmployee   FinalReview[]             @relation("FinalReviewEmployee")
-  finalReviewsAsHR         FinalReview[]             @relation("FinalReviewHR")
-  finalReviewsAsSupervisor FinalReview[]             @relation("FinalReviewSupervisor")
-  selfAppraisalAttachments SelfAppraisalAttachment[]
-  selfAppraisals           SelfAppraisal[]           @relation("SelfAppraisalEmployee")
-  supervisedSelfAppraisals SelfAppraisal[]           @relation("SelfAppraisalSupervisor")
-  signatures               Signature[]
-  reportScopes             SupervisorScope[]         @relation("ReportRelations")
-  supervisorScopes         SupervisorScope[]         @relation("SupervisorRelations")
   manager                  User?                     @relation("UserManager", fields: [managerId], references: [id])
   subordinates             User[]                    @relation("UserManager")
+  notifications            Notification[]
+  appraisalDrafts          AppraisalDraft[]
+  systemSettings           SystemSetting[]
+  chatLogs                 ChatLog[]
+  userRoles                UserRoleAssignment[]      // Multiple roles support
 
   @@map("users")
 }
 
-model LoginAttempt {
-  id        String   @id @default(cuid())
-  email     String
-  ipAddress String?
-  userAgent String?
-  success   Boolean
+model UserRoleAssignment {
+  id       String   @id @default(cuid())
+  userId   String
+  role     UserRole
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
-
-  @@index([email, createdAt])
-  @@map("login_attempts")
-}
-
-// New models for Settings functionality
-model Cycle {
-  id            String   @id @default(cuid())
-  name          String
-  code          String   @unique
-  startDate     DateTime
-  endDate       DateTime
-  status        CycleStatus @default(PLANNED)
-  selfDueDays   Int?
-  mgrDueDays    Int?
-  peerEnabled   Boolean  @default(false)
-  studentEnabled Boolean @default(false)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  @@map("cycles")
-}
-
-model RatingScale {
-  id        String @id @default(cuid())
-  name      String
-  minValue  Int
-  maxValue  Int
-  labels    Json
-  active    Boolean @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  templates AppraisalTemplate[]
-
-  @@map("rating_scales")
-}
-
-model AppraisalTemplate {
-  id            String                @id @default(cuid())
-  name          String
-  type          AppraisalTemplateType
-  configJson    Json                  @map("config_json")
-  createdAt     DateTime              @default(now()) @map("created_at")
-  updatedAt     DateTime              @updatedAt @map("updated_at")
-  displayName   String                @default("") @map("display_name")
-  version       String                @default("1.0")
-  code          String                @unique @default("")
-  published     Boolean               @default(false)
-  ratingScaleId String?               @map("rating_scale_id")
-  ratingScale   RatingScale?          @relation(fields: [ratingScaleId], references: [id])
-  targetGroups  Json?                 @map("target_groups")
-  categoryId    String?               @map("category_id")
-  category      EmployeeCategory?     @relation(fields: [categoryId], references: [id])
-  filePath      String?               @map("file_path")
-  active        Boolean               @default(true)
-  sections      TemplateSection[]
-  appraisalInstances AppraisalInstance[]
-  appraisals    Appraisal[]
-
-  @@map("appraisal_templates")
-}
-
-model TemplateSection {
-  id          String @id @default(cuid())
-  templateId  String @map("template_id")
-  template    AppraisalTemplate @relation(fields: [templateId], references: [id])
-  title       String
-  weight      Float
-  orderIndex  Int    @map("order_index")
-  questions   TemplateQuestion[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@map("template_sections")
-}
-
-model TemplateQuestion {
-  id            String @id @default(cuid())
-  sectionId     String @map("section_id")
-  section       TemplateSection @relation(fields: [sectionId], references: [id])
-  text          String
-  type          String
-  required      Boolean @default(true)
-  orderIndex    Int    @map("order_index")
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  @@map("template_questions")
-}
-
-model SystemConfig {
-  id                    Int     @id @default(1)
-  selfAppraisalRequired Boolean @default(true) @map("self_appraisal_required")
-  selfRatingsEnabled    Boolean @default(true) @map("self_ratings_enabled")
-  defaultAttachmentMB   Int     @default(25) @map("default_attachment_mb")
-  emailFrom             String? @map("email_from")
-  reminderDays          Json?   @map("reminder_days")
-  ssoEnabled            Boolean @default(false) @map("sso_enabled")
-  ssoProvider           String? @map("sso_provider")
-  backupScheduleCron    String? @map("backup_schedule_cron")
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
-
-  @@map("system_config")
-}
-
-model AuditLog {
-  id        String  @id @default(cuid())
-  actorId   String? @map("actor_id")
-  actorRole String? @map("actor_role")
-  action    String
-  entity    String
-  entityId  String? @map("entity_id")
-  before    Json?
-  after     Json?
-  ip        String?
-  userAgent String? @map("user_agent")
-  createdAt DateTime @default(now())
-  actor     User?   @relation(fields: [actorId], references: [id])
-
-  @@map("audit_logs")
-}
-
-model BackupLog {
-  id        String  @id @default(cuid())
-  status    String
-  sizeBytes Int?    @map("size_bytes")
-  location  String?
-  error     String?
-  createdAt DateTime @default(now())
-
-  @@map("backup_logs")
+  
+  @@unique([userId, role])
+  @@map("user_role_assignments")
 }
 
 model Employee {
@@ -205,18 +77,16 @@ model Employee {
   contractTerm           String?
   createdAt              DateTime            @default(now())
   updatedAt              DateTime            @updatedAt
-  contractEndDate        DateTime?           @map("contract_end_date")
-  contractStartDate      DateTime?           @map("contract_start_date")
-  employmentCategory     EmploymentCategory  @default(GENERAL_STAFF) @map("employment_category")
-  expectedAppraisalDay   Int?                @map("expected_appraisal_day")
-  expectedAppraisalMonth String?             @map("expected_appraisal_month")
-  categoryId             String?             @map("category_id")
+  contractEndDate        DateTime?           
+  contractStartDate      DateTime?           
+  employmentCategory     EmploymentCategory  @default(GENERAL_STAFF)
+  categoryId             String?             
   category               EmployeeCategory?   @relation(fields: [categoryId], references: [id])
-  appraisalInstances     AppraisalInstance[]
-  appraisals             Appraisal[]
+  user                   User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   supervisor             Employee?           @relation("EmployeeSupervisor", fields: [supervisorId], references: [id])
   subordinates           Employee[]          @relation("EmployeeSupervisor")
-  user                   User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  appraisalInstances     AppraisalInstance[]
+  appraisalDrafts        AppraisalDraft[]
 
   @@map("employees")
 }
@@ -225,7 +95,7 @@ model EmployeeCategory {
   id                String              @id @default(cuid())
   name              String              @unique
   description       String?
-  filePath          String?             @map("file_path")
+  filePath          String?             
   active            Boolean             @default(true)
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
@@ -235,500 +105,319 @@ model EmployeeCategory {
   @@map("employee_categories")
 }
 
+model AppraisalTemplate {
+  id                String                @id @default(cuid())
+  name              String
+  type              AppraisalTemplateType
+  configJson        Json                  
+  templateStructure Json?
+  scoringRules      Json?
+  weighting         Json?
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+  displayName       String                @default("")
+  version           String                @default("1.0")
+  code              String                @unique @default("")
+  published         Boolean               @default(false)
+  categoryId        String?               
+  category          EmployeeCategory?     @relation(fields: [categoryId], references: [id])
+  filePath          String?               
+  active            Boolean               @default(true)
+  sections          AppraisalSection[]
+  appraisalInstances AppraisalInstance[]
+
+  @@map("appraisal_templates")
+}
+
 model AppraisalCycle {
   id                 String              @id @default(cuid())
   name               String
-  periodStart        DateTime?           @map("period_start")
-  periodEnd          DateTime?           @map("period_end")
+  periodStart        DateTime?           
+  periodEnd          DateTime?           
   status             String              @default("ACTIVE")
-  startDate          DateTime?           @map("start_date")
-  endDate            DateTime?           @map("end_date")
+  startDate          DateTime?           
+  endDate            DateTime?           
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
   appraisalInstances AppraisalInstance[]
-  appraisals         Appraisal[]
-  selfAppraisals     SelfAppraisal[]
 
   @@map("appraisal_cycles")
 }
 
-
 model AppraisalInstance {
-  id              String                  @id @default(cuid())
-  templateId      String                  @map("template_id")
-  employeeId      String                  @map("employee_id")
-  cycleId         String                  @map("cycle_id")
-  options         Json
-  sections        Json
-  finalScore      Float?                  @map("final_score")
-  finalBand       String?                 @map("final_band")
-  status          AppraisalInstanceStatus
-  submittedAt     DateTime?               @map("submitted_at")
-  reviewedAt      DateTime?               @map("reviewed_at")
-  completedAt     DateTime?               @map("completed_at")
-  createdBy       String                  @map("created_by")
-  createdAt       DateTime                @default(now()) @map("created_at")
-  updatedAt       DateTime                @updatedAt @map("updated_at")
-  selfAppraisalId String?                 @map("self_appraisal_id")
-  
-  // Manager Review Fields
-  reviewerId        String?               @map("reviewer_id")
-  managerRating     Int?                  @map("manager_rating")
-  managerComment    String?               @map("manager_comment")
-  managerSectionNotes Json?               @map("manager_section_notes")
-  contractBlock     Json?                 @map("contract_block")
-  managerSignedAt   DateTime?             @map("manager_signed_at")
-  managerSignedName String?               @map("manager_signed_name")
+  id                    String              @id @default(cuid())
+  employeeId            String
+  templateId            String
+  cycleId               String
+  status                String              @default("DRAFT") // draft, in_review, awaiting_hr, completed, returned_to_manager
+  selfAppraisalData     Json?
+  managerReviewData     Json?
+  managerSectionNotes   Json?
+  managerComment        String?
+  managerRating         String?
+  contractBlock         String?
+  managerSignedAt       DateTime?
+  managerSignedName     String?
+  reviewedAt            DateTime?
+  createdBy             String
+  reviewerId            String?
   
   // Divisional Head Review Fields
-  headReviewerId    String?               @map("head_reviewer_id")
-  headReviewedAt    DateTime?             @map("head_reviewed_at")
-  headRecommendation Json?                @map("head_recommendation")
-  headSignedAt      DateTime?             @map("head_signed_at")
-  headSignedName    String?               @map("head_signed_name")
+  divisionalHeadComments String?
+  divisionalHeadDecision  String?  // confirm, do_not_confirm, renew, do_not_renew
+  divisionalHeadReviewedAt DateTime?
+  divisionalHeadSignedName String?
+  divisionalHeadSignedAt   DateTime?
   
-  // HR Final Decision Fields
-  hrDecision        String?               @map("hr_decision")   // "RENEW_CONTRACT" | "EXTEND_PROBATION" | "TERMINATE"
-  hrComments        String?               @map("hr_comments")
-  hrSignature       String?               @map("hr_signature")
-  finalizedAt       DateTime?             @map("finalized_at")
+  // Final Approver Review Fields
+  overallPerformanceComments String?
+  confirmAppointment         Boolean? @default(false)
+  extendProbation            Boolean? @default(false)
+  recommendTermination       Boolean? @default(false)
+  recommendNewContract       Boolean? @default(false)
+  finalApproverSignature     String?
+  finalApproverSignedAt      DateTime?
+  finalApproverReviewedAt    DateTime?
+  finalApproverReviewedBy    String?
   
-  creator         User                    @relation(fields: [createdBy], references: [id])
-  cycle           AppraisalCycle          @relation(fields: [cycleId], references: [id])
-  employee        Employee                @relation(fields: [employeeId], references: [id])
-  selfAppraisal   SelfAppraisal?          @relation(fields: [selfAppraisalId], references: [id])
-  template        AppraisalTemplate       @relation(fields: [templateId], references: [id])
-  finalReview     FinalReview?
+  // HR Fields
+  hrApprovedAt          DateTime?
+  hrApprovedBy          String?
+  hrComments            String?
+  overallScore          Float?
+  
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+  employee              Employee            @relation(fields: [employeeId], references: [id])
+  template               AppraisalTemplate  @relation(fields: [templateId], references: [id])
+  cycle                 AppraisalCycle      @relation(fields: [cycleId], references: [id])
+  sections              AppraisalSectionInstance[]
+  responses             AppraisalResponse[]
+  goals                 Goal[]
+  competencies          AppraisalCompetency[]
 
-  @@index([status, submittedAt])
-  @@index([employeeId, status])
-  @@index([reviewerId, status])
   @@map("appraisal_instances")
 }
 
-model Notification {
+model AppraisalSectionInstance {
   id          String   @id @default(cuid())
-  type        String   // 'appraisal_submitted', 'reminder', 'outlier_alert'
-  recipientId String?  // User ID (optional for system notifications)
-  recipientEmail String
-  subject     String
-  body        String
-  htmlBody    String?
-  status      String   // 'pending', 'sent', 'failed'
-  sentAt      DateTime?
-  error       String?
-  metadata    Json?    // Additional data like appraisalId, etc.
+  instanceId  String
+  instance    AppraisalInstance @relation(fields: [instanceId], references: [id])
+  sectionId   String
+  section     AppraisalSection @relation(fields: [sectionId], references: [id])
+  score       Int      @default(0)
+  maxScore    Int
+  weight      Float
+  weightedScore Float?
+  comments    String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  @@map("notifications")
+  @@map("appraisal_section_instances")
 }
 
-
-model Appraisal {
-  id                   String                @id @default(cuid())
-  employeeId           String
-  supervisorId         String
-  templateId           String
-  cycleId              String
-  status               AppraisalStatus       @default(DRAFT)
-  submittedAt          DateTime?
-  reviewedAt           DateTime?
-  completedAt          DateTime?
-  finalScore           Float?
-  ratingBand           RatingBand?
-  createdAt            DateTime              @default(now())
-  updatedAt            DateTime              @updatedAt
-  cycle                AppraisalCycle        @relation(fields: [cycleId], references: [id])
-  employee             Employee              @relation(fields: [employeeId], references: [id])
-  supervisor           User                  @relation(fields: [supervisorId], references: [id])
-  template             AppraisalTemplate     @relation(fields: [templateId], references: [id])
-  comments             Comment[]
-  competencySelections CompetencySelection[]
-  criterionScores      CriterionScore[]
-  evidence             Evidence[]
-  goals                Goal[]
-  midYearReview        MidYearReview?
-
-  sectionScores        SectionScore[]
-  signatures           Signature[]
-  studentEvaluations   StudentEvaluation[]
-
-  @@index([status, submittedAt])
-  @@index([employeeId, status])
-  @@map("appraisals")
+model AppraisalSection {
+  id          String   @id @default(cuid())
+  templateId  String
+  template    AppraisalTemplate @relation(fields: [templateId], references: [id])
+  name        String
+  description String?
+  weight      Float    // 0.0 to 1.0
+  maxScore    Int
+  order       Int
+  questions   AppraisalQuestion[]
+  instances   AppraisalSectionInstance[]
+  @@map("appraisal_sections")
 }
 
-model SectionScore {
-  id            String    @id @default(cuid())
-  appraisalId   String
-  sectionKey    String
-  rawTotal      Float
-  denom         Float
-  weight        Float
-  weightedScore Float
-  appraisal     Appraisal @relation(fields: [appraisalId], references: [id], onDelete: Cascade)
-
-  @@map("section_scores")
+model AppraisalQuestion {
+  id          String   @id @default(cuid())
+  sectionId   String
+  section     AppraisalSection @relation(fields: [sectionId], references: [id])
+  question    String
+  description String?
+  maxScore    Int
+  order       Int
+  responses   AppraisalResponse[]
+  @@map("appraisal_questions")
 }
 
-model CriterionScore {
-  id           String    @id @default(cuid())
-  appraisalId  String
-  sectionKey   String
-  criterionKey String
-  score        Float
-  max          Float
-  note         String?
-  appraisal    Appraisal @relation(fields: [appraisalId], references: [id], onDelete: Cascade)
-
-  @@unique([appraisalId, sectionKey, criterionKey])
-  @@map("criterion_scores")
+model AppraisalResponse {
+  id          String   @id @default(cuid())
+  questionId  String
+  question    AppraisalQuestion @relation(fields: [questionId], references: [id])
+  instanceId  String
+  instance    AppraisalInstance @relation(fields: [instanceId], references: [id])
+  score       Int
+  comments    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@map("appraisal_responses")
 }
 
 model Goal {
-  id              String    @id @default(cuid())
-  appraisalId     String
-  title           String
-  description     String
-  weight          Float
-  measures        String
-  timeline        String
-  resources       String
-  relevance       String
-  roadblocks      String
-  progressPercent Float     @default(0)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  appraisal       Appraisal @relation(fields: [appraisalId], references: [id], onDelete: Cascade)
-
+  id          String   @id @default(cuid())
+  instanceId  String
+  instance    AppraisalInstance @relation(fields: [instanceId], references: [id])
+  description String
+  performanceStandard String
+  intendedResults String
+  score       Int?     // 0-4 rating
+  maxScore    Int      @default(4)
+  comments    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
   @@map("goals")
 }
 
-model StudentEvaluation {
-  id          String    @id @default(cuid())
-  appraisalId String
-  courseCode  String
-  courseTitle String
-  avgOutOf5   Float
-  appraisal   Appraisal @relation(fields: [appraisalId], references: [id], onDelete: Cascade)
+model AppraisalCompetency {
+  id             String            @id @default(cuid())
+  appraisalId    String
+  competencyId   String
+  appraisal      AppraisalInstance @relation(fields: [appraisalId], references: [id], onDelete: Cascade)
+  competency     Competency        @relation(fields: [competencyId], references: [id])
+  createdAt      DateTime          @default(now())
 
-  @@map("student_evaluations")
+  @@unique([appraisalId, competencyId])
+  @@map("appraisal_competencies")
 }
 
-model Evidence {
-  id           String    @id @default(cuid())
-  appraisalId  String
-  sectionKey   String
-  label        String
-  url          String
-  note         String?
-  uploadedById String
-  createdAt    DateTime  @default(now())
-  appraisal    Appraisal @relation(fields: [appraisalId], references: [id], onDelete: Cascade)
-  uploadedBy   User      @relation(fields: [uploadedById], references: [id])
+model CompetencyCluster {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  category    String?
+  competencies Competency[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  @@map("evidence")
-}
-
-model Comment {
-  id          String    @id @default(cuid())
-  appraisalId String
-  authorId    String
-  body        String
-  createdAt   DateTime  @default(now())
-  appraisal   Appraisal @relation(fields: [appraisalId], references: [id], onDelete: Cascade)
-  author      User      @relation(fields: [authorId], references: [id])
-
-  @@map("comments")
-}
-
-model MidYearReview {
-  id                  String        @id @default(cuid())
-  appraisalId         String        @unique
-  coreNotesJson       Json
-  functionalNotesJson Json
-  goal1               String?
-  goal2               String?
-  generalComments     String?
-  overallComments     String?
-  status              MidYearStatus
-  signedSupervisorAt  DateTime?
-  signedEmployeeAt    DateTime?
-  createdAt           DateTime      @default(now())
-  updatedAt           DateTime      @updatedAt
-  appraisal           Appraisal     @relation(fields: [appraisalId], references: [id], onDelete: Cascade)
-
-  @@map("mid_year_reviews")
-}
-
-model Signature {
-  id            String        @id @default(cuid())
-  appraisalId   String
-  role          SignatureRole
-  signerName    String
-  signerEmail   String
-  signedAt      DateTime
-  signatureHash String
-  appraisal     Appraisal     @relation(fields: [appraisalId], references: [id], onDelete: Cascade)
-  signer        User          @relation(fields: [signerEmail], references: [email])
-
-  @@map("signatures")
+  @@map("competency_clusters")
 }
 
 model Competency {
-  id                   String                @id @default(cuid())
-  code                 String                @unique
-  title                String
-  cluster              CompetencyCluster
-  department           String
-  definition           String
-  behaviorsBasic       String
-  behaviorsAbove       String
-  behaviorsOutstanding String
-  active               Boolean               @default(true)
-  createdAt            DateTime              @default(now())
-  updatedAt            DateTime              @updatedAt
-  selections           CompetencySelection[]
+  id          String            @id @default(cuid())
+  code        String            @unique
+  name        String
+  description String?
+  definition  String?
+  basicBehaviours String?
+  aboveExpectationsBehaviours String?
+  outstandingBehaviours String?
+  department  String?
+  jobLevel    String?
+  category    String?
+  clusterId   String
+  cluster     CompetencyCluster @relation(fields: [clusterId], references: [id])
+  appraisalCompetencies AppraisalCompetency[]
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
 
   @@map("competencies")
 }
 
-model CompetencySelection {
-  id           String            @id @default(cuid())
-  appraisalId  String
-  competencyId String
-  type         CompetencyCluster
-  appraisal    Appraisal         @relation(fields: [appraisalId], references: [id], onDelete: Cascade)
-  competency   Competency        @relation(fields: [competencyId], references: [id])
-
-  @@unique([appraisalId, competencyId])
-  @@map("competency_selections")
-}
-
-
-model FAQ {
-  id           String   @id @default(cuid())
-  question     String
-  answer       String
-  role         String   @default("ALL")
-  category     String   @default("GENERAL")
-  actionButton Json?
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  @@map("faqs")
-}
-
-model ChatbotQuery {
-  id            String   @id @default(cuid())
-  userRole      String
-  question      String
-  faqId         String?
-  actionClicked String?
-  timestamp     DateTime @default(now())
-
-  @@map("chatbot_queries")
-}
-
-model SupervisorScope {
-  id           String   @id @default(cuid())
-  supervisorId String
-  reportId     String
-  level        Int      @default(1)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  report       User     @relation("ReportRelations", fields: [reportId], references: [id], onDelete: Cascade)
-  supervisor   User     @relation("SupervisorRelations", fields: [supervisorId], references: [id], onDelete: Cascade)
-
-  @@unique([supervisorId, reportId])
-  @@map("supervisor_scope")
-}
-
-model SelfAppraisal {
-  id                 String                    @id @default(cuid())
-  cycleId            String
-  employeeId         String
-  supervisorId       String?
-  status             SelfAppraisalStatus       @default(NOT_STARTED)
-  dueDate            DateTime
-  interviewDate      DateTime?
-  interviewTime      String?
-  answers            Json
-  selfRatings        Json?
-  submittedAt        DateTime?
-  returnedAt         DateTime?
-  lockedAt           DateTime?
-  returnReason       String?
-  createdAt          DateTime                  @default(now())
-  updatedAt          DateTime                  @updatedAt
-  appraisalInstances AppraisalInstance[]
-  attachments        SelfAppraisalAttachment[]
-  cycle              AppraisalCycle            @relation(fields: [cycleId], references: [id], onDelete: Cascade)
-  employee           User                      @relation("SelfAppraisalEmployee", fields: [employeeId], references: [id], onDelete: Cascade)
-  supervisor         User?                     @relation("SelfAppraisalSupervisor", fields: [supervisorId], references: [id])
-
-  @@unique([cycleId, employeeId])
-  @@map("self_appraisals")
-}
-
-model SelfAppraisalAttachment {
-  id              String        @id @default(cuid())
-  selfAppraisalId String
-  questionKey     String
-  fileName        String
-  originalName    String
-  fileSize        Int
-  mimeType        String
-  url             String
-  uploadedAt      DateTime      @default(now())
-  uploadedBy      String
-  selfAppraisal   SelfAppraisal @relation(fields: [selfAppraisalId], references: [id], onDelete: Cascade)
-  uploader        User          @relation(fields: [uploadedBy], references: [id])
-
-  @@map("self_appraisal_attachments")
-}
-
-model FinalReview {
-  id                      String                @id @default(cuid())
-  appraisalId             String                @unique
-  employeeComments        String?
-  employeeSignature       String?
-  employeeSignedAt        DateTime?
-  employeeSignedBy        String?
-  supervisorComments      String?
-  supervisorSignature     String?
-  supervisorSignedAt      DateTime?
-  supervisorSignedBy      String?
-  divisionalComments      String?
-  divisionalHeadSignature String?
-  divisionalHeadSignedAt  DateTime?
-  divisionalHeadSignedBy  String?
-  recommendationType      RecommendationType?
-  recommendationAction    RecommendationAction?
-  additionalNotes         String?
-  hrFinalizedBy           String?
-  hrFinalizedAt           DateTime?
-  isLocked                Boolean               @default(false)
-  createdAt               DateTime              @default(now())
-  updatedAt               DateTime              @updatedAt
-  appraisal               AppraisalInstance     @relation(fields: [appraisalId], references: [id], onDelete: Cascade)
-  divisionalSigner        User?                 @relation("FinalReviewDivisional", fields: [divisionalHeadSignedBy], references: [id])
-  employeeSigner          User?                 @relation("FinalReviewEmployee", fields: [employeeSignedBy], references: [id])
-  hrFinalizer             User?                 @relation("FinalReviewHR", fields: [hrFinalizedBy], references: [id])
-  supervisorSigner        User?                 @relation("FinalReviewSupervisor", fields: [supervisorSignedBy], references: [id])
-
-  @@map("final_reviews")
-}
-
-enum UserRole {
-  HR_ADMIN
-  SUPERVISOR
-  EMPLOYEE
-  REVIEWER
-}
-
-enum AppraisalStatus {
-  DRAFT
-  IN_PROGRESS
-  SUBMITTED
-  IN_REVIEW
-  COMPLETED
-  ARCHIVED
+enum EmploymentCategory {
+  FACULTY
+  GENERAL_STAFF
+  EXECUTIVE
+  CLINICAL
 }
 
 enum AppraisalTemplateType {
-  DEAN
   FACULTY
-  CLINICAL
   GENERAL_STAFF
   EXECUTIVE
-}
-
-enum CycleStatus {
-  PLANNED
-  ACTIVE
-  CLOSED
-  ARCHIVED
-}
-
-enum EmploymentCategory {
-  DEAN
-  FACULTY
   CLINICAL
-  GENERAL_STAFF
-  EXECUTIVE
+  DEAN
+  CLINICAL_INSTRUCTOR
+  EXECUTIVE_MANAGEMENT
 }
 
-enum AppraisalInstanceStatus {
-  DRAFT
-  IN_PROGRESS
-  SUBMITTED          // employee submitted
-  IN_REVIEW          // manager reviewing
-  REVIEWED_MANAGER   // sent to Divisional Head
-  FINAL_REVIEW       // Divisional Head reviewing
-  COMPLETED
-  ARCHIVED
+model SSOConfig {
+  id          String   @id @default(cuid())
+  isEnabled   Boolean  @default(false)
+  clientId    String
+  clientSecret String
+  tenantId    String
+  redirectUri String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("sso_config")
 }
 
-enum CompetencyCluster {
+model EmailLog {
+  id        String   @id @default(cuid())
+  to        String
+  cc        String?
+  subject   String
+  status    String   // sent, failed, pending
+  type      String   // notification, alert, etc.
+  error     String?
+  attempt   Int      @default(1)
+  createdAt DateTime @default(now())
+
+  @@map("email_logs")
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  body      String
+  link      String?
+  type      String   // email_fallback, system_notice, etc.
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@map("notifications")
+}
+
+model AppraisalDraft {
+  id         String   @id @default(cuid())
+  managerId  String
+  employeeId String
+  cycleId    String?
+  templateId String?
+  data       Json
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  manager    User     @relation(fields: [managerId], references: [id])
+  employee   Employee @relation(fields: [employeeId], references: [id])
+
+  @@map("appraisal_drafts")
+}
+
+
+enum CompetencyCategory {
   CORE
   FUNCTIONAL
 }
 
-enum MidYearStatus {
-  NOT_ON_TRACK
-  ON_TRACK_SOME
-  ON_TRACK_ALL
-}
-
-enum SignatureRole {
-  EMPLOYEE
-  SUPERVISOR
-  REVIEWER
-}
-
-enum RatingBand {
-  OUTSTANDING
-  VERY_GOOD
-  GOOD
-  FAIR
-  UNSATISFACTORY
-}
-
-enum SelfAppraisalStatus {
-  NOT_STARTED
-  IN_PROGRESS
-  SUBMITTED
-  RETURNED_FOR_EDITS
-  LOCKED_TO_FINAL
-}
-
-enum RecommendationType {
-  PROBATION
-  CONTRACT
-  PERMANENT
-}
-
-enum RecommendationAction {
-  CONFIRM
-  DO_NOT_CONFIRM
-  RENEW_CONTRACT
-  DO_NOT_RENEW
-  OTHER
-}
-
-model NotificationLog {
-  id          String   @id @default(uuid())
-  kind        String   // APPRAISAL_SUBMITTED_EMPLOYEE | APPRAISAL_SUBMITTED_HR
-  appraisalId String
-  toEmail     String
-  status      String   // queued | sent | failed | skipped
-  error       String?
+model SystemSetting {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String
+  description String?
+  category    String   @default("general")
+  isEncrypted Boolean  @default(false)
+  createdBy   String?
+  createdByUser User?  @relation(fields: [createdBy], references: [id])
   createdAt   DateTime @default(now())
-  sentAt      DateTime?
-  
-  @@index([appraisalId, kind, toEmail])
-  @@map("notification_logs")
+  updatedAt   DateTime @updatedAt
+
+  @@map("system_settings")
+}
+
+model ChatLog {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  question  String
+  reply     String
+  timestamp DateTime @default(now())
+  sessionId String?  // Optional: for grouping conversations
+
+  @@map("chat_logs")
 }

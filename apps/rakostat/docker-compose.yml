@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: rakostat-postgres
+    environment:
+      POSTGRES_DB: rakostat
+      POSTGRES_USER: rakostat
+      POSTGRES_PASSWORD: rakostat123
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - rakostat-network
+
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    container_name: rakostat-api
+    environment:
+      DATABASE_URL: postgresql://rakostat:rakostat123@postgres:5432/rakostat
+      NODE_ENV: development
+      PORT: 3001
+      JWT_SECRET: your-jwt-secret-key
+      AZURE_CLIENT_ID: ${AZURE_CLIENT_ID}
+      AZURE_CLIENT_SECRET: ${AZURE_CLIENT_SECRET}
+      AZURE_TENANT_ID: ${AZURE_TENANT_ID}
+    ports:
+      - "3001:3001"
+    depends_on:
+      - postgres
+    networks:
+      - rakostat-network
+    volumes:
+      - ./apps/api:/app
+      - /app/node_modules
+
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    container_name: rakostat-web
+    environment:
+      VITE_API_URL: http://localhost:3001
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    networks:
+      - rakostat-network
+    volumes:
+      - ./apps/web:/app
+      - /app/node_modules
+
+volumes:
+  postgres_data:
+
+networks:
+  rakostat-network:
+    driver: bridge

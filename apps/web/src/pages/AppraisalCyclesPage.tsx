@@ -27,13 +27,14 @@ import {
   CheckCircle,
   AlertCircle
 } from 'lucide-react';
-import { toast } from 'react-hot-toast';
+import { useToast } from '../components/ui/toast';
 import { settingsApi } from '../lib/api';
 import { format, parseISO } from 'date-fns';
 
 export function AppraisalCyclesPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { addToast } = useToast();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedCycle, setSelectedCycle] = useState<any>(null);
@@ -48,12 +49,12 @@ export function AppraisalCyclesPage() {
   const createCycleMutation = useMutation({
     mutationFn: (data: any) => settingsApi.createCycle(data),
     onSuccess: () => {
-      toast.success('Appraisal cycle created successfully!');
+      addToast({ type: 'success', title: 'Appraisal cycle created successfully!' });
       setIsCreateDialogOpen(false);
       queryClient.invalidateQueries(['settings', 'cycles']);
     },
     onError: (err: any) => {
-      toast.error(`Failed to create cycle: ${err.response?.data?.message || err.message}`);
+      addToast({ type: 'error', title: `Failed to create cycle: ${err.response?.data?.message || err.message}` });
     },
   });
 
@@ -61,13 +62,13 @@ export function AppraisalCyclesPage() {
   const updateCycleMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: any }) => settingsApi.updateCycle(id, data),
     onSuccess: () => {
-      toast.success('Appraisal cycle updated successfully!');
+      addToast({ type: 'success', title: 'Appraisal cycle updated successfully!' });
       setIsEditDialogOpen(false);
       setSelectedCycle(null);
       queryClient.invalidateQueries(['settings', 'cycles']);
     },
     onError: (err: any) => {
-      toast.error(`Failed to update cycle: ${err.response?.data?.message || err.message}`);
+      addToast({ type: 'error', title: `Failed to update cycle: ${err.response?.data?.message || err.message}` });
     },
   });
 
@@ -75,11 +76,11 @@ export function AppraisalCyclesPage() {
   const activateCycleMutation = useMutation({
     mutationFn: (id: string) => settingsApi.activateCycle(id),
     onSuccess: () => {
-      toast.success('Appraisal cycle activated successfully!');
+      addToast({ type: 'success', title: 'Appraisal cycle activated successfully!' });
       queryClient.invalidateQueries(['settings', 'cycles']);
     },
     onError: (err: any) => {
-      toast.error(`Failed to activate cycle: ${err.response?.data?.message || err.message}`);
+      addToast({ type: 'error', title: `Failed to activate cycle: ${err.response?.data?.message || err.message}` });
     },
   });
 
@@ -87,11 +88,11 @@ export function AppraisalCyclesPage() {
   const closeCycleMutation = useMutation({
     mutationFn: (id: string) => settingsApi.closeCycle(id),
     onSuccess: () => {
-      toast.success('Appraisal cycle closed successfully!');
+      addToast({ type: 'success', title: 'Appraisal cycle closed successfully!' });
       queryClient.invalidateQueries(['settings', 'cycles']);
     },
     onError: (err: any) => {
-      toast.error(`Failed to close cycle: ${err.response?.data?.message || err.message}`);
+      addToast({ type: 'error', title: `Failed to close cycle: ${err.response?.data?.message || err.message}` });
     },
   });
 

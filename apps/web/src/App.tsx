@@ -1,149 +1,175 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
-import { useAuth } from './hooks/useAuth';
-import { useMSALAuth } from './hooks/useMSALAuth';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { AuthProvider } from './contexts/AuthContext';
+import { SSOProvider } from './contexts/SSOContext';
+import { ToastProvider } from './components/ui/toast';
 import { LoginPage } from './pages/LoginPage';
+import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
+import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { DashboardPage } from './pages/DashboardPage';
-import { AppraisalsPage } from './pages/AppraisalsPage';
-import { AppraisalEditorPage } from './pages/AppraisalEditorPage';
 import { CreateAppraisalPage } from './pages/CreateAppraisalPage';
+import { EnhancedCreateAppraisalPage } from './pages/EnhancedCreateAppraisalPage';
+import { QuickCreateAppraisalPage } from './pages/QuickCreateAppraisalPage';
+import { AppraisalsPage } from './pages/AppraisalsPage';
+import { AppraisalTemplatesPage } from './pages/AppraisalTemplatesPage';
+import { AppraisalCyclesPage } from './pages/AppraisalCyclesPage';
+import { AppraisalFormsPage } from './pages/AppraisalFormsPage';
 import { EmployeesPage } from './pages/EmployeesPage';
 import { CompetenciesPage } from './pages/CompetenciesPage';
 import { ReportsPage } from './pages/ReportsPage';
-import { SelfAppraisalPage } from './pages/SelfAppraisalPage';
+import { SettingsPage } from './pages/SettingsPage';
+import { DivisionalHeadReviewPage } from './pages/DivisionalHeadReviewPage';
 import { FinalReviewPage } from './pages/FinalReviewPage';
-import { ManagerReviewPage } from './pages/ManagerReviewPage';
-import DivisionalHeadPage from './pages/DivisionalHeadPage';
-import AppraisalDetailsPage from './pages/AppraisalDetailsPage';
-import SettingsPage from './pages/SettingsPage';
-import UserManagementPage from './pages/UserManagementPage';
-import { AppraisalCyclesPage } from './pages/AppraisalCyclesPage';
-import { IntegrationDashboard } from './pages/IntegrationDashboard';
-import { Layout } from './components/Layout';
-import { LoadingSpinner } from './components/ui/loading-spinner';
+import { AppraisalEditPage } from './pages/AppraisalEditPage';
+import { EmployeeProfilePage } from './pages/EmployeeProfilePage';
+import { EmployeeSelfEvaluationPage } from './pages/EmployeeSelfEvaluationPage';
+import { SelfEvaluationHistoryPage } from './pages/SelfEvaluationHistoryPage';
+import { SelfEvaluationViewPage } from './pages/SelfEvaluationViewPage';
+import { ChangePasswordPage } from './pages/ChangePasswordPage';
+import { AdminPasswordManagementPage } from './pages/AdminPasswordManagementPage';
+import { TeamManagementPage } from './pages/TeamManagementPage';
+import { SSOCallbackPage } from './pages/SSOCallbackPage';
+import { TestPage } from './pages/TestPage';
 import { RouteGuard } from './components/RouteGuard';
-import { MSALProvider } from './components/MSALProvider';
-import { ToastProvider } from './components/ui/toast';
 
-function AppContent() {
-  const { user, isLoading } = useAuth();
-  const { user: msalUser, isAuthenticated: isMSALAuthenticated } = useMSALAuth();
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <LoadingSpinner size="lg" />
-      </div>
-    );
-  }
-
-  // Use MSAL user if available, otherwise fall back to regular auth
-  const currentUser = isMSALAuthenticated ? msalUser : user;
-
-  if (!currentUser) {
-    return <LoginPage />;
-  }
-
-  return (
-    <Layout>
-      <Routes>
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        <Route path="/dashboard" element={<DashboardPage />} />
-        <Route path="/appraisals" element={<AppraisalsPage />} />
-        <Route 
-          path="/appraisals/new" 
-          element={
-            <RouteGuard action="create" resource="appraisal">
-              <CreateAppraisalPage />
-            </RouteGuard>
-          } 
-        />
-        <Route path="/appraisals/:id" element={<AppraisalEditorPage />} />
-        <Route path="/appraisals/:id/final-review" element={<FinalReviewPage />} />
-        <Route path="/self-appraisal/:cycleId" element={<SelfAppraisalPage />} />
-        <Route 
-          path="/employees" 
-          element={
-            <RouteGuard action="view" resource="employee" context={{ scope: 'team' }}>
-              <EmployeesPage />
-            </RouteGuard>
-          } 
-        />
-        <Route path="/competencies" element={<CompetenciesPage />} />
-        <Route 
-          path="/reports" 
-          element={
-            <RouteGuard action="view" resource="report">
-              <ReportsPage />
-            </RouteGuard>
-          } 
-        />
-        <Route 
-          path="/settings" 
-          element={
-            <RouteGuard action="manage" resource="settings">
-              <SettingsPage />
-            </RouteGuard>
-          } 
-        />
-        <Route 
-          path="/users" 
-          element={
-            <RouteGuard action="manage" resource="user">
-              <UserManagementPage />
-            </RouteGuard>
-          } 
-        />
-        <Route 
-          path="/cycles" 
-          element={
-            <RouteGuard action="manage" resource="cycle">
-              <AppraisalCyclesPage />
-            </RouteGuard>
-          } 
-        />
-        <Route 
-          path="/integration" 
-          element={
-            <RouteGuard action="manage" resource="integration">
-              <IntegrationDashboard />
-            </RouteGuard>
-          } 
-        />
-        <Route 
-          path="/appraisals/:id/review" 
-          element={
-            <RouteGuard action="review" resource="appraisal">
-              <ManagerReviewPage />
-            </RouteGuard>
-          } 
-        />
-        <Route 
-          path="/appraisals/:id/finalize" 
-          element={<DivisionalHeadPage />} 
-        />
-        <Route 
-          path="/appraisals/create" 
-          element={
-            <RouteGuard action="create" resource="appraisal">
-              <AppraisalDetailsPage />
-            </RouteGuard>
-          } 
-        />
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
-      </Routes>
-    </Layout>
-  );
-}
+const queryClient = new QueryClient();
 
 function App() {
   return (
-    <MSALProvider>
-      <ToastProvider>
-        <AppContent />
-      </ToastProvider>
-    </MSALProvider>
+    <QueryClientProvider client={queryClient}>
+      <SSOProvider>
+        <AuthProvider>
+          <ToastProvider>
+            <Router>
+            <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
+            <Route path="/dashboard" element={
+              <RouteGuard>
+                <DashboardPage />
+              </RouteGuard>
+            } />
+            <Route path="/appraisals/new" element={
+              <RouteGuard>
+                <CreateAppraisalPage />
+              </RouteGuard>
+            } />
+            <Route path="/appraisals/new-enhanced" element={
+              <RouteGuard>
+                <EnhancedCreateAppraisalPage />
+              </RouteGuard>
+            } />
+            <Route path="/appraisals/new-quick" element={
+              <RouteGuard>
+                <QuickCreateAppraisalPage />
+              </RouteGuard>
+            } />
+            <Route path="/appraisals" element={
+              <RouteGuard>
+                <AppraisalsPage />
+              </RouteGuard>
+            } />
+            <Route path="/appraisals/:id/review" element={
+              <RouteGuard>
+                <DivisionalHeadReviewPage />
+              </RouteGuard>
+            } />
+            <Route path="/appraisals/:id/final-review" element={
+              <RouteGuard>
+                <FinalReviewPage />
+              </RouteGuard>
+            } />
+            <Route path="/appraisals/:id/edit" element={
+              <RouteGuard>
+                <AppraisalEditPage />
+              </RouteGuard>
+            } />
+            <Route path="/appraisals/:id/view" element={
+              <RouteGuard>
+                <DivisionalHeadReviewPage />
+              </RouteGuard>
+            } />
+               <Route path="/profile" element={
+                 <RouteGuard>
+                   <EmployeeProfilePage />
+                 </RouteGuard>
+               } />
+               <Route path="/self-evaluation" element={
+                 <RouteGuard>
+                   <EmployeeSelfEvaluationPage />
+                 </RouteGuard>
+               } />
+               <Route path="/self-evaluation/history" element={
+                 <RouteGuard>
+                   <SelfEvaluationHistoryPage />
+                 </RouteGuard>
+               } />
+               <Route path="/self-evaluation/:id/view" element={
+                 <RouteGuard>
+                   <SelfEvaluationViewPage />
+                 </RouteGuard>
+               } />
+               <Route path="/change-password" element={
+                 <RouteGuard>
+                   <ChangePasswordPage />
+                 </RouteGuard>
+               } />
+               <Route path="/admin/password-management" element={
+                 <RouteGuard>
+                   <AdminPasswordManagementPage />
+                 </RouteGuard>
+               } />
+               <Route path="/team-management" element={
+                 <RouteGuard>
+                   <TeamManagementPage />
+                 </RouteGuard>
+               } />
+            <Route path="/templates" element={
+              <RouteGuard>
+                <AppraisalTemplatesPage />
+              </RouteGuard>
+            } />
+            <Route path="/cycles" element={
+              <RouteGuard>
+                <AppraisalCyclesPage />
+              </RouteGuard>
+            } />
+            <Route path="/appraisal-forms" element={
+              <RouteGuard>
+                <AppraisalFormsPage />
+              </RouteGuard>
+            } />
+            <Route path="/employees" element={
+              <RouteGuard>
+                <EmployeesPage />
+              </RouteGuard>
+            } />
+            <Route path="/competencies" element={
+              <RouteGuard>
+                <CompetenciesPage />
+              </RouteGuard>
+            } />
+            <Route path="/reports" element={
+              <RouteGuard>
+                <ReportsPage />
+              </RouteGuard>
+            } />
+            <Route path="/settings" element={
+              <RouteGuard>
+                <SettingsPage />
+              </RouteGuard>
+            } />
+            <Route path="/test" element={<TestPage />} />
+            <Route path="/auth/sso/callback" element={<SSOCallbackPage />} />
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          </Routes>
+            </Router>
+          </ToastProvider>
+        </AuthProvider>
+      </SSOProvider>
+    </QueryClientProvider>
   );
 }
 
 export default App;
-

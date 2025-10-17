@@ -1,191 +1,163 @@
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { useAuth } from '../hooks/useAuth';
-import { useMSALAuth } from '../hooks/useMSALAuth';
-import { Button } from '../components/ui/button';
-import { Input } from '../components/ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
-import { LoadingSpinner } from '../components/ui/loading-spinner';
-import { toast } from 'react-hot-toast';
-import { Mail } from 'lucide-react';
-import { COSTAATTLogo } from '../components/COSTAATTLogo';
-
-const loginSchema = z.object({
-  email: z.string().email('Please enter a valid email address'),
-  password: z.string().min(1, 'Password is required'),
-});
-
-type LoginForm = z.infer<typeof loginSchema>;
+import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import { getSSORedirectUrl } from '../lib/config';
 
 export function LoginPage() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
   const { login } = useAuth();
-  const { login: msalLogin, isLoading: isMSALLoading } = useMSALAuth();
+  const navigate = useNavigate();
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<LoginForm>({
-    resolver: zodResolver(loginSchema),
-  });
-
-  const onSubmit = async (data: LoginForm) => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     setIsLoading(true);
+    setError('');
+
+    console.log('🚀 LoginPage: Starting login process...');
+    
     try {
-      await login(data.email, data.password);
-      toast.success('Login successful!');
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Login failed');
+      console.log('🚀 LoginPage: Calling login function...');
+      await login(email, password);
+      console.log('✅ LoginPage: Login function completed successfully');
+      console.log('🚀 LoginPage: Navigating to dashboard...');
+      navigate('/dashboard');
+    } catch (err) {
+      console.log('❌ LoginPage: Login failed with error:', err);
+      console.log('❌ LoginPage: Error message:', err.message);
+      setError('Login failed. Please check your credentials.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleMicrosoftLogin = async () => {
-    try {
-      await msalLogin();
-      toast.success('Microsoft 365 login successful!');
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Microsoft 365 login failed');
-    }
+  const fillDemoCredentials = (email: string, password: string) => {
+    setEmail(email);
+    setPassword(password);
+  };
+
+  const handleSSOLogin = () => {
+    // Redirect to Microsoft OAuth
+    window.location.href = getSSORedirectUrl();
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
-      {/* Header with COSTAATT Logo */}
-      <div className="flex justify-end p-6">
-        <COSTAATTLogo size="md" />
-      </div>
-
-      {/* Main Content */}
-      <div className="flex-1 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-md w-full space-y-8">
-        <div className="text-center">
-          <div className="mx-auto h-12 w-12 bg-primary rounded-lg flex items-center justify-center">
-            <span className="text-white font-bold text-xl">HR</span>
+    <div className="min-h-screen bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center p-4">
+      <div className="bg-white rounded-lg shadow-xl p-8 w-full max-w-md">
+        <div className="text-center mb-8">
+          <div className="inline-block bg-purple-600 text-white px-4 py-2 rounded-full text-sm font-semibold mb-4">
+            HR
           </div>
-          <h2 className="mt-6 text-3xl font-bold text-gray-900">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
             COSTAATT HR Performance Gateway
-          </h2>
-          <p className="mt-2 text-sm text-gray-600">
-            Sign in to your account to continue
-          </p>
+          </h1>
+          <p className="text-gray-600">Sign in to your account to continue</p>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Sign In</CardTitle>
-            <CardDescription>
-              Enter your credentials to access the performance management system
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                  Email Address
-                </label>
-                <Input
-                  id="email"
-                  type="email"
-                  autoComplete="email"
-                  {...register('email')}
-                  className="mt-1"
-                />
-                {errors.email && (
-                  <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
-                )}
-              </div>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div>
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+              Email Address
+            </label>
+            <input
+              type="email"
+              id="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              placeholder="Enter your email"
+              required
+            />
+          </div>
 
-              <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                  Password
-                </label>
-                <Input
-                  id="password"
-                  type="password"
-                  autoComplete="current-password"
-                  {...register('password')}
-                  className="mt-1"
-                />
-                {errors.password && (
-                  <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
-                )}
-              </div>
-
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <>
-                    <LoadingSpinner size="sm" className="mr-2" />
-                    Signing in...
-                  </>
-                ) : (
-                  'Sign In'
-                )}
-              </Button>
-            </form>
-
-            {/* Microsoft 365 Login */}
-            <div className="mt-4">
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-gray-300" />
-                </div>
-                <div className="relative flex justify-center text-sm">
-                  <span className="px-2 bg-white text-gray-500">Or continue with</span>
-                </div>
-              </div>
-
-              <Button
+          <div>
+            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+              Password
+            </label>
+            <input
+              type="password"
+              id="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              placeholder="Enter your password"
+              required
+            />
+            <div className="mt-2 text-right">
+              <button
                 type="button"
-                variant="outline"
-                className="w-full mt-4"
-                onClick={handleMicrosoftLogin}
-                disabled={isMSALLoading}
+                onClick={() => navigate('/forgot-password')}
+                className="text-sm text-purple-600 hover:text-purple-500 hover:underline"
               >
-                {isMSALLoading ? (
-                  <>
-                    <LoadingSpinner size="sm" className="mr-2" />
-                    Connecting...
-                  </>
-                ) : (
-                  <>
-                    <Mail className="mr-2 h-4 w-4" />
-                    Sign in with Microsoft 365
-                  </>
-                )}
-              </Button>
+                Forgot your password?
+              </button>
             </div>
+          </div>
 
-            <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-              <h3 className="text-sm font-medium text-gray-900 mb-2">Demo Credentials:</h3>
-              <div className="text-xs text-gray-600 space-y-1">
-                <p><strong>Admin:</strong> admin@costaatt.edu.tt / P@ssw0rd!</p>
-                <p><strong>Supervisor:</strong> john.doe@costaatt.edu.tt / password123</p>
-                <p><strong>Employee:</strong> mike.johnson@costaatt.edu.tt / password123</p>
-              </div>
+          {error && (
+            <div className="text-red-600 text-sm text-center">{error}</div>
+          )}
+
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="w-full bg-purple-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-purple-700 focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50"
+          >
+            {isLoading ? 'Signing in...' : 'Sign In'}
+          </button>
+        </form>
+
+        <div className="mt-6">
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-300" />
             </div>
-          </CardContent>
-        </Card>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-white text-gray-500">Or continue with</span>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleSSOLogin}
+            className="mt-4 w-full flex items-center justify-center px-4 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+          >
+            <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
+              <path fill="#0078d4" d="M11.4 24H0V12.6h11.4V24zM24 24H12.6V12.6H24V24zM11.4 11.4H0V0h11.4v11.4zM24 11.4H12.6V0H24v11.4z"/>
+            </svg>
+            Sign in with Microsoft 365
+          </button>
         </div>
-      </div>
 
-      {/* Footer */}
-      <div className="flex justify-center py-6 border-t border-gray-200">
-        <div className="text-center">
-          <div className="text-sm text-gray-600">
-            Powered by <span className="font-semibold text-blue-600">COSTAATT Technology Services</span> 2025
+        <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+          <h3 className="text-sm font-medium text-blue-900 mb-2">Demo Credentials (Click to auto-fill):</h3>
+          <div className="space-y-1 text-sm text-blue-800">
+            <button
+              type="button"
+              onClick={() => fillDemoCredentials('admin@costaatt.edu.tt', 'P@ssw0rd!')}
+              className="block hover:underline"
+            >
+              Admin: admin@costaatt.edu.tt / P@ssw0rd!
+            </button>
+            <button
+              type="button"
+              onClick={() => fillDemoCredentials('john.doe@costaatt.edu.tt', 'password123')}
+              className="block hover:underline"
+            >
+              Supervisor: john.doe@costaatt.edu.tt / password123
+            </button>
+            <button
+              type="button"
+              onClick={() => fillDemoCredentials('mike.johnson@costaatt.edu.tt', 'password123')}
+              className="block hover:underline"
+            >
+              Employee: mike.johnson@costaatt.edu.tt / password123
+            </button>
           </div>
         </div>
       </div>
     </div>
   );
 }
-

@@ -1,0 +1,131 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  REGISTRY
+  FACILITIES
+  CAMPUS_DEAN
+  STAFF
+}
+
+enum Campus {
+  CITY_CAMPUS
+  NORTH_LEARNING_CENTER
+  CHAGUANAS_CAMPUS
+  SAN_FERNANDO_CAMPUS
+  TOBAGO_CAMPUS
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  role      UserRole @default(STAFF)
+  campus    Campus?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  bookings Booking[]
+  assignedCampus Campus? @relation("CampusDean")
+
+  @@map("users")
+}
+
+model Room {
+  id          String   @id @default(cuid())
+  name        String
+  campus      Campus
+  capacity    Int
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  technologies RoomTechnology[]
+  bookings     Booking[]
+
+  @@map("rooms")
+}
+
+model Technology {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  rooms RoomTechnology[]
+
+  @@map("technologies")
+}
+
+model RoomTechnology {
+  id           String @id @default(cuid())
+  roomId       String
+  technologyId String
+
+  // Relations
+  room        Room        @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  technology  Technology  @relation(fields: [technologyId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, technologyId])
+  @@map("room_technologies")
+}
+
+model Booking {
+  id          String        @id @default(cuid())
+  title       String
+  description String?
+  startTime   DateTime
+  endTime     DateTime
+  status      BookingStatus @default(PENDING)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  // Foreign keys
+  userId String
+  roomId String
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@map("bookings")
+}
+
+model Maintenance {
+  id          String   @id @default(cuid())
+  roomId      String
+  startDate   DateTime
+  endDate     DateTime
+  reason      String
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@map("maintenances")
+}

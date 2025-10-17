@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>COSTAATT HR Performance Gateway</title>
+    <style>
+        * { 
+            margin: 0; 
+            padding: 0; 
+            box-sizing: border-box; 
+        }
+        
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container { 
+            max-width: 400px; 
+            width: 100%;
+            background: white; 
+            padding: 40px; 
+            border-radius: 16px; 
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        
+        .header { 
+            text-align: center; 
+            margin-bottom: 30px; 
+        }
+        
+        .badge { 
+            display: inline-block; 
+            background: #7c3aed; 
+            color: white; 
+            padding: 8px 16px; 
+            border-radius: 20px; 
+            font-size: 14px; 
+            font-weight: 600; 
+            margin-bottom: 20px; 
+        }
+        
+        h1 { 
+            font-size: 28px; 
+            font-weight: 700; 
+            color: #1f2937; 
+            margin-bottom: 8px; 
+        }
+        
+        .subtitle { 
+            color: #6b7280; 
+            font-size: 16px; 
+        }
+        
+        .form-group { 
+            margin-bottom: 20px; 
+        }
+        
+        label { 
+            display: block; 
+            margin-bottom: 8px; 
+            font-weight: 600; 
+            color: #374151; 
+        }
+        
+        input { 
+            width: 100%; 
+            padding: 12px 16px; 
+            border: 2px solid #e5e7eb; 
+            border-radius: 8px; 
+            font-size: 16px; 
+            transition: border-color 0.2s; 
+        }
+        
+        input:focus { 
+            outline: none; 
+            border-color: #7c3aed; 
+            box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+        }
+        
+        button { 
+            width: 100%; 
+            padding: 12px; 
+            background: #7c3aed; 
+            color: white; 
+            border: none; 
+            border-radius: 8px; 
+            font-size: 16px; 
+            font-weight: 600; 
+            cursor: pointer; 
+            transition: background 0.2s; 
+            margin-bottom: 20px;
+        }
+        
+        button:hover { 
+            background: #6d28d9; 
+        }
+        
+        .divider { 
+            text-align: center; 
+            margin: 20px 0; 
+            color: #6b7280; 
+            position: relative; 
+        }
+        
+        .divider::before { 
+            content: ''; 
+            position: absolute; 
+            top: 50%; 
+            left: 0; 
+            right: 0; 
+            height: 1px; 
+            background: #e5e7eb; 
+        }
+        
+        .divider span { 
+            background: white; 
+            padding: 0 16px; 
+        }
+        
+        .demo { 
+            margin-top: 30px; 
+            padding: 20px; 
+            background: #f0f9ff; 
+            border-radius: 8px; 
+            border: 1px solid #bae6fd; 
+        }
+        
+        .demo h3 { 
+            color: #0369a1; 
+            margin-bottom: 15px; 
+        }
+        
+        .demo p { 
+            margin: 8px 0; 
+            font-size: 14px; 
+            color: #0c4a6e; 
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+        
+        .demo p:hover {
+            background: #e0f2fe;
+        }
+        
+        .error {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #dc2626;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            display: none;
+        }
+        
+        .success {
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            color: #166534;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            display: none;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            color: #6b7280;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="badge">HR</div>
+            <h1>COSTAATT HR Performance Gateway</h1>
+            <p class="subtitle">Sign in to your account to continue</p>
+        </div>
+        
+        <div id="error" class="error"></div>
+        <div id="success" class="success"></div>
+        
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="email">Email Address</label>
+                <input type="email" id="email" name="email" required placeholder="Enter your email">
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" required placeholder="Enter your password">
+            </div>
+            
+            <button type="submit" id="submitBtn">
+                <span id="btnText">Sign In</span>
+                <div id="loading" class="loading">Signing in...</div>
+            </button>
+        </form>
+        
+        <div class="divider">
+            <span>Or continue with</span>
+        </div>
+        
+        <button type="button" onclick="alert('Microsoft 365 login not implemented')" style="background: white; color: #374151; border: 2px solid #e5e7eb;">
+            📧 Sign in with Microsoft 365
+        </button>
+        
+        <div class="demo">
+            <h3>Demo Credentials (Click to auto-fill):</h3>
+            <p onclick="fillCredentials('admin@costaatt.edu.tt', 'P@ssw0rd!')"><strong>Admin:</strong> admin@costaatt.edu.tt / P@ssw0rd!</p>
+            <p onclick="fillCredentials('john.doe@costaatt.edu.tt', 'password123')"><strong>Supervisor:</strong> john.doe@costaatt.edu.tt / password123</p>
+            <p onclick="fillCredentials('mike.johnson@costaatt.edu.tt', 'password123')"><strong>Employee:</strong> mike.johnson@costaatt.edu.tt / password123</p>
+        </div>
+    </div>
+
+    <script>
+        function fillCredentials(email, password) {
+            document.getElementById('email').value = email;
+            document.getElementById('password').value = password;
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('error');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            document.getElementById('success').style.display = 'none';
+        }
+
+        function showSuccess(message) {
+            const successDiv = document.getElementById('success');
+            successDiv.textContent = message;
+            successDiv.style.display = 'block';
+            document.getElementById('error').style.display = 'none';
+        }
+
+        function setLoading(loading) {
+            const submitBtn = document.getElementById('submitBtn');
+            const btnText = document.getElementById('btnText');
+            const loadingDiv = document.getElementById('loading');
+            
+            if (loading) {
+                submitBtn.disabled = true;
+                btnText.style.display = 'none';
+                loadingDiv.style.display = 'block';
+            } else {
+                submitBtn.disabled = false;
+                btnText.style.display = 'block';
+                loadingDiv.style.display = 'none';
+            }
+        }
+
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            setLoading(true);
+            document.getElementById('error').style.display = 'none';
+            document.getElementById('success').style.display = 'none';
+            
+            try {
+                const response = await fetch('http://localhost:3000/auth/login', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    localStorage.setItem('token', data.data.accessToken);
+                    localStorage.setItem('user', JSON.stringify(data.data.user));
+                    showSuccess('Login successful! Redirecting to dashboard...');
+                    
+                    setTimeout(() => {
+                        window.location.href = '/dashboard';
+                    }, 1500);
+                } else {
+                    showError('Login failed: ' + (data.message || 'Invalid credentials'));
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                showError('Login error: Unable to connect to server. Please check if the API server is running on port 3000.');
+            } finally {
+                setLoading(false);
+            }
+        });
+    </script>
+</body>
+</html>

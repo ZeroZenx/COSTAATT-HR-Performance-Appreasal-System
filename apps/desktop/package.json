@@ -22,8 +22,12 @@
     "files": [
       "main.js",
       "preload.js",
-      "renderer/**/*",
-      "node_modules/**/*"
+      "package.json",
+      {
+        "from": "../web/dist",
+        "to": "renderer",
+        "filter": ["**/*"]
+      }
     ],
     "win": {
       "target": "nsis",

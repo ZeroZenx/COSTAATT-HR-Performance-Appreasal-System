@@ -1,7 +1,6 @@
 import axios from 'axios';
 import { ApiResponse } from '@costaatt/shared';
-
-const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:3000';
+import { API_BASE_URL } from './config';
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
@@ -13,7 +12,7 @@ export const api = axios.create({
 // Request interceptor to add auth token
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('accessToken');
+    const token = localStorage.getItem('token') || localStorage.getItem('accessToken');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -220,6 +219,12 @@ export const appraisalsApi = {
   
   updateMidYear: (id: string, data: any) =>
     api.put<ApiResponse<any>>(`/appraisals/${id}/midyear`, data),
+  
+  delete: (id: string) =>
+    api.delete<ApiResponse<any>>(`/appraisals/${id}`),
+  
+  assignCompetencies: (id: string, competencyIds: string[]) =>
+    api.post<ApiResponse<any>>(`/appraisals/${id}/competencies`, { competencyIds }),
 };
 
 // Competencies API

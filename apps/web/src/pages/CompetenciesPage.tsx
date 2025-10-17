@@ -1,433 +1,689 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Layout } from '../components/Layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
-import { LoadingSpinner } from '../components/ui/loading-spinner';
-import { Plus, Search, Filter, Edit, Trash2, Eye, Target, BookOpen, Users, Award, Grid3X3, List } from 'lucide-react';
-import { competenciesApi } from '../lib/api';
+import { Badge } from '../components/ui/badge';
+import { CompetencyModal } from '../components/CompetencyModal';
+import { 
+  Search, 
+  Grid3X3, 
+  List, 
+  Plus, 
+  BookOpen, 
+  Users, 
+  Target,
+  TrendingUp,
+  Eye,
+  Edit,
+  Trash2,
+  Download,
+  Upload,
+  AlertCircle,
+  CheckCircle,
+  X
+} from 'lucide-react';
+
+interface Competency {
+  id?: string;
+  code: string;
+  name: string;
+  description: string;
+  definition: string;
+  basicBehaviours: string;
+  aboveExpectationsBehaviours: string;
+  outstandingBehaviours: string;
+  department: string;
+  jobLevel: string;
+  category: string;
+  clusterId: string;
+  cluster?: {
+    id: string;
+    name: string;
+    description: string;
+    category: string;
+  };
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+interface CompetencyCluster {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+}
 
 export function CompetenciesPage() {
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterArea, setFilterArea] = useState('');
-  const [selectedCompetency, setSelectedCompetency] = useState<any>(null);
-  const [viewMode, setViewMode] = useState<'card' | 'table'>('card');
+  const [selectedCluster, setSelectedCluster] = useState('ALL');
+  const [selectedCategory, setSelectedCategory] = useState('ALL');
+  const [selectedLevel, setSelectedLevel] = useState('ALL');
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('grid');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedCompetency, setSelectedCompetency] = useState<Competency | null>(null);
+  const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
-  const { data: competencies, isLoading } = useQuery({
+  const queryClient = useQueryClient();
+
+  const { data: competencies, isLoading: competenciesLoading, error } = useQuery({
     queryKey: ['competencies'],
-    queryFn: () => competenciesApi.getAll().then(res => {
-      return Array.isArray(res.data) ? res.data : [];
-    }),
+    queryFn: async () => {
+      const response = await fetch('http://10.2.1.27:3000/competencies');
+      if (!response.ok) {
+        throw new Error('Failed to fetch competencies');
+      }
+      return response.json();
+    }
   });
 
+  const { data: clusters } = useQuery({
+    queryKey: ['competency-clusters'],
+    queryFn: async () => {
+      const response = await fetch('http://10.2.1.27:3000/competency-clusters');
+      if (!response.ok) {
+        throw new Error('Failed to fetch competency clusters');
+      }
+      return response.json();
+    }
+  });
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <LoadingSpinner size="lg" />
-      </div>
-    );
-  }
+  // Mutations
+  const createCompetencyMutation = useMutation({
+    mutationFn: async (competencyData: Partial<Competency>) => {
+      const response = await fetch('http://10.2.1.27:3000/competencies', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(competencyData),
+      });
+      if (!response.ok) {
+        throw new Error('Failed to create competency');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['competencies'] });
+      setMessage({ type: 'success', text: 'Competency created successfully!' });
+      setIsModalOpen(false);
+    },
+    onError: (error: Error) => {
+      setMessage({ type: 'error', text: error.message });
+    },
+  });
 
-  // Filter competencies based on search term and area
-  const filteredCompetencies = competencies?.filter(competency => {
-    const matchesSearch = !searchTerm ||
-      competency.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      competency.definition?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      competency.department?.toLowerCase().includes(searchTerm.toLowerCase());
+  const updateCompetencyMutation = useMutation({
+    mutationFn: async ({ id, ...competencyData }: Competency) => {
+      const response = await fetch(`http://10.2.1.27:3000/competencies/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(competencyData),
+      });
+      if (!response.ok) {
+        throw new Error('Failed to update competency');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['competencies'] });
+      setMessage({ type: 'success', text: 'Competency updated successfully!' });
+      setIsModalOpen(false);
+      setSelectedCompetency(null);
+    },
+    onError: (error: Error) => {
+      setMessage({ type: 'error', text: error.message });
+    },
+  });
 
-    const matchesArea = !filterArea ||
-      competency.department === filterArea;
+  const deleteCompetencyMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await fetch(`http://10.2.1.27:3000/competencies/${id}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) {
+        throw new Error('Failed to delete competency');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['competencies'] });
+      setMessage({ type: 'success', text: 'Competency deleted successfully!' });
+    },
+    onError: (error: Error) => {
+      setMessage({ type: 'error', text: error.message });
+    },
+  });
 
-    return matchesSearch && matchesArea;
+  // Handler functions
+  const handleAddCompetency = () => {
+    setSelectedCompetency(null);
+    setIsModalOpen(true);
+  };
+
+  const handleEditCompetency = (competency: Competency) => {
+    setSelectedCompetency(competency);
+    setIsModalOpen(true);
+  };
+
+  const handleViewCompetency = (competency: Competency) => {
+    setSelectedCompetency(competency);
+    setIsModalOpen(true);
+  };
+
+  const handleDeleteCompetency = (competency: Competency) => {
+    if (window.confirm(`Are you sure you want to delete "${competency.name}"?`)) {
+      if (competency.id) {
+        deleteCompetencyMutation.mutate(competency.id);
+      }
+    }
+  };
+
+  const handleSaveCompetency = (competencyData: Competency) => {
+    if (competencyData.id) {
+      updateCompetencyMutation.mutate(competencyData);
+    } else {
+      createCompetencyMutation.mutate(competencyData);
+    }
+  };
+
+  const handleExport = async () => {
+    try {
+      const response = await fetch('http://10.2.1.27:3000/competencies/export');
+      if (!response.ok) {
+        throw new Error('Failed to export competencies');
+      }
+      const data = await response.json();
+      
+      // Create download link
+      const blob = new Blob([JSON.stringify(data.data, null, 2)], { type: 'application/json' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = data.filename || 'competencies_export.json';
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      setMessage({ type: 'success', text: 'Competencies exported successfully!' });
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Failed to export competencies!' });
+    }
+  };
+
+  const handleImport = () => {
+    setIsImportModalOpen(true);
+  };
+
+  const handleFileImport = async (file: File) => {
+    try {
+      const text = await file.text();
+      let importData;
+      
+      if (file.name.endsWith('.json')) {
+        importData = JSON.parse(text);
+      } else if (file.name.endsWith('.csv')) {
+        // Basic CSV parsing - you might want to use a CSV library for production
+        const lines = text.split('\n');
+        const headers = lines[0].split(',');
+        importData = lines.slice(1).map(line => {
+          const values = line.split(',');
+          return headers.reduce((obj, header, index) => {
+            obj[header.trim()] = values[index]?.trim() || '';
+            return obj;
+          }, {} as any);
+        });
+      }
+      
+      const response = await fetch('http://10.2.1.27:3000/competencies/import', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ competencies: importData }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to import competencies');
+      }
+      
+      const result = await response.json();
+      queryClient.invalidateQueries({ queryKey: ['competencies'] });
+      setMessage({ type: 'success', text: result.message });
+      setIsImportModalOpen(false);
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Failed to import competencies!' });
+    }
+  };
+
+  const filteredCompetencies = competencies?.filter((competency: Competency) => {
+    const matchesSearch = 
+      competency.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      competency.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      competency.code.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesCluster = selectedCluster === 'ALL' || competency.cluster?.id === selectedCluster;
+    const matchesCategory = selectedCategory === 'ALL' || competency.category === selectedCategory;
+    const matchesLevel = selectedLevel === 'ALL' || competency.jobLevel === selectedLevel;
+    
+    return matchesSearch && matchesCluster && matchesCategory && matchesLevel;
   }) || [];
 
-  const competencyAreas = [...new Set(competencies?.map(c => c.department).filter(Boolean) || [])];
+  const getLevelBadge = (level: string) => {
+    const styles = {
+      'Basic': 'bg-blue-100 text-blue-800',
+      'Intermediate': 'bg-green-100 text-green-800',
+      'Advanced': 'bg-purple-100 text-purple-800',
+      'Expert': 'bg-orange-100 text-orange-800'
+    };
+    return styles[level as keyof typeof styles] || 'bg-gray-100 text-gray-800';
+  };
+
+  const getCategoryBadge = (category: string) => {
+    const styles = {
+      'Personal Effectiveness and Leadership': 'bg-indigo-100 text-indigo-800',
+      'Values and Guiding Principles': 'bg-emerald-100 text-emerald-800',
+      'People Focus': 'bg-rose-100 text-rose-800',
+      'Faculty Competencies': 'bg-blue-100 text-blue-800',
+      'Administrative Competencies': 'bg-amber-100 text-amber-800'
+    };
+    return styles[category as keyof typeof styles] || 'bg-gray-100 text-gray-800';
+  };
+
+  const CompetencyCard = ({ competency }: { competency: Competency }) => (
+    <Card className="h-full hover:shadow-lg transition-shadow">
+      <CardHeader>
+        <div className="flex items-start justify-between">
+          <div className="flex-1">
+            <CardTitle className="text-lg mb-2">{competency.name}</CardTitle>
+            <CardDescription className="text-sm mb-3">
+              {competency.description}
+            </CardDescription>
+          </div>
+          <Badge className={getLevelBadge(competency.jobLevel)}>
+            {competency.jobLevel}
+          </Badge>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Badge variant="outline" className="text-xs">
+            {competency.cluster?.name || 'No Cluster'}
+          </Badge>
+          <Badge className={getCategoryBadge(competency.category)}>
+            {competency.category.split(' ')[0]}
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-3">
+          <div>
+            <h4 className="text-sm font-medium text-gray-700 mb-1">Code</h4>
+            <p className="text-sm text-gray-600 font-mono">{competency.code}</p>
+          </div>
+          
+          <div>
+            <h4 className="text-sm font-medium text-gray-700 mb-1">Basic Behaviours</h4>
+            <p className="text-sm text-gray-600 line-clamp-2">
+              {competency.basicBehaviours?.split('; ').slice(0, 2).join(' • ') || 'Not specified'}
+            </p>
+          </div>
+          
+          <div className="flex space-x-2 pt-2">
+            <Button 
+              size="sm" 
+              variant="outline" 
+              className="flex-1"
+              onClick={() => handleViewCompetency(competency)}
+            >
+              <Eye className="w-4 h-4 mr-1" />
+              View
+            </Button>
+            <Button 
+              size="sm" 
+              variant="outline"
+              onClick={() => handleEditCompetency(competency)}
+            >
+              <Edit className="w-4 h-4" />
+            </Button>
+            <Button 
+              size="sm" 
+              variant="outline" 
+              className="text-red-600 hover:text-red-700"
+              onClick={() => handleDeleteCompetency(competency)}
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+
+  const CompetencyListItem = ({ competency }: { competency: Competency }) => (
+    <Card className="mb-4">
+      <CardContent className="p-6">
+        <div className="flex items-start justify-between">
+          <div className="flex-1">
+            <div className="flex items-center space-x-3 mb-2">
+              <h3 className="text-lg font-semibold">{competency.name}</h3>
+              <Badge className={getLevelBadge(competency.jobLevel)}>
+                {competency.jobLevel}
+              </Badge>
+              <Badge className={getCategoryBadge(competency.category)}>
+                {competency.category.split(' ')[0]}
+              </Badge>
+            </div>
+            <p className="text-gray-600 mb-3">{competency.description}</p>
+            <div className="flex items-center space-x-4 text-sm text-gray-500">
+              <span className="font-mono">{competency.code}</span>
+              <span>•</span>
+              <span>{competency.cluster?.name || 'No Cluster'}</span>
+            </div>
+          </div>
+          <div className="flex space-x-2 ml-4">
+            <Button 
+              size="sm" 
+              variant="outline"
+              onClick={() => handleViewCompetency(competency)}
+            >
+              <Eye className="w-4 h-4 mr-1" />
+              View
+            </Button>
+            <Button 
+              size="sm" 
+              variant="outline"
+              onClick={() => handleEditCompetency(competency)}
+            >
+              <Edit className="w-4 h-4" />
+            </Button>
+            <Button 
+              size="sm" 
+              variant="outline" 
+              className="text-red-600 hover:text-red-700"
+              onClick={() => handleDeleteCompetency(competency)}
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="flex items-center space-x-4 mb-2">
-            <div className="text-4xl font-bold text-gray-900 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              COSTAATT
-            </div>
-            <div className="h-8 w-px bg-gradient-to-b from-blue-300 to-purple-300"></div>
-            <div className="text-2xl font-bold text-red-600" style={{textShadow: '2px 2px 4px #1e40af'}}>
-              COMPETENCY LIBRARY
-            </div>
-          </div>
-          <p className="text-gray-600 italic">Transforming the Nation...One Student at a Time</p>
-        </div>
-        <Button className="flex items-center space-x-2">
-          <Plus className="h-4 w-4" />
-          <span>Add Competency</span>
-        </Button>
-      </div>
-
-      {/* Mission Statement */}
-      <Card className="bg-gradient-to-r from-red-50 to-orange-50 border-red-200">
-        <CardContent className="p-6">
-          <div className="text-center">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Our Mission</h3>
-            <p className="text-gray-700 italic">
-              "Transforming the Nation...One Student at a Time"
-            </p>
-            <p className="text-sm text-gray-600 mt-2">
-              Through comprehensive competency development, we empower our faculty and staff to deliver 
-              exceptional education that transforms lives and builds a stronger Trinidad and Tobago.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Search and Filter Controls */}
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                <Input
-                  placeholder="Search competencies..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
+    <Layout>
+      <div className="min-h-screen bg-gray-50">
+        {/* Main Content */}
+        <main className="flex-1 p-6">
+          <div className="mb-8 sticky top-0 bg-gray-50 z-30 pb-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900">Competency Library</h1>
+                <p className="mt-2 text-gray-600">
+                  COSTAATT's comprehensive competency framework for performance management
+                </p>
+              </div>
+              <div className="flex space-x-3">
+                <Button variant="outline" onClick={handleImport}>
+                  <Upload className="w-4 h-4 mr-2" />
+                  Import
+                </Button>
+                <Button variant="outline" onClick={handleExport}>
+                  <Download className="w-4 h-4 mr-2" />
+                  Export
+                </Button>
+                <Button className="bg-purple-600 hover:bg-purple-700" onClick={handleAddCompetency}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Competency
+                </Button>
               </div>
             </div>
-            <div className="sm:w-48">
-              <select
-                value={filterArea}
-                onChange={(e) => setFilterArea(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">All Areas</option>
-                {competencyAreas.map((area) => (
-                  <option key={area} value={area}>
-                    {area}
-                  </option>
-                ))}
-              </select>
-            </div>
-                <div className="flex items-center space-x-2">
-                  <Button variant="outline" className="flex items-center space-x-2">
-                    <Filter className="h-4 w-4" />
-                    <span>Filters</span>
-                  </Button>
-                  <div className="flex border border-gray-300 rounded-md">
-                    <Button
-                      variant={viewMode === 'card' ? 'default' : 'ghost'}
-                      size="sm"
-                      onClick={() => setViewMode('card')}
-                      className="rounded-r-none"
-                    >
-                      <Grid3X3 className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant={viewMode === 'table' ? 'default' : 'ghost'}
-                      size="sm"
-                      onClick={() => setViewMode('table')}
-                      className="rounded-l-none"
-                    >
-                      <List className="h-4 w-4" />
-                    </Button>
+          </div>
+
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center">
+                  <BookOpen className="h-8 w-8 text-blue-600" />
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">Total Competencies</p>
+                    <p className="text-2xl font-bold text-gray-900">{competencies?.length || 0}</p>
                   </div>
                 </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Table of Contents */}
-      <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
-        <CardHeader>
-          <CardTitle className="text-xl font-bold text-blue-900">Table of Contents</CardTitle>
-          <CardDescription className="text-blue-700">
-            Navigate through COSTAATT's comprehensive competency framework
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <h4 className="font-semibold text-blue-900">Core Competencies</h4>
-              <ul className="text-sm text-blue-700 space-y-1">
-                <li>• Communication Skills</li>
-                <li>• Leadership</li>
-                <li>• Problem Solving</li>
-                <li>• Teamwork</li>
-              </ul>
-            </div>
-            <div className="space-y-2">
-              <h4 className="font-semibold text-blue-900">Professional Skills</h4>
-              <ul className="text-sm text-blue-700 space-y-1">
-                <li>• Technical Expertise</li>
-                <li>• Innovation</li>
-                <li>• Customer Focus</li>
-                <li>• Adaptability</li>
-              </ul>
-            </div>
-            <div className="space-y-2">
-              <h4 className="font-semibold text-blue-900">Academic Excellence</h4>
-              <ul className="text-sm text-blue-700 space-y-1">
-                <li>• Teaching Excellence</li>
-                <li>• Research & Development</li>
-                <li>• Student Mentorship</li>
-                <li>• Curriculum Innovation</li>
-              </ul>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Competency Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center space-x-2">
-              <Target className="h-8 w-8 text-blue-600" />
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Competencies</p>
-                <p className="text-2xl font-bold text-gray-900">{competencies?.length || 0}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center space-x-2">
-              <BookOpen className="h-8 w-8 text-green-600" />
-              <div>
-                <p className="text-sm font-medium text-gray-600">Competency Areas</p>
-                <p className="text-2xl font-bold text-gray-900">{competencyAreas.length}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center space-x-2">
-              <Users className="h-8 w-8 text-purple-600" />
-              <div>
-                <p className="text-sm font-medium text-gray-600">Faculty & Staff</p>
-                <p className="text-2xl font-bold text-gray-900">14</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center space-x-2">
-              <Award className="h-8 w-8 text-orange-600" />
-              <div>
-                <p className="text-sm font-medium text-gray-600">Performance Reviews</p>
-                <p className="text-2xl font-bold text-gray-900">0</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Competencies Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-xl font-bold text-gray-900">COSTAATT Competency Framework</CardTitle>
-          <CardDescription className="text-gray-600">
-            {filteredCompetencies.length} competenc{filteredCompetencies.length !== 1 ? 'ies' : 'y'} found • 
-            Comprehensive performance standards for academic excellence
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {viewMode === 'card' ? (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {filteredCompetencies.map((competency, index) => (
-              <div key={competency.id || index} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center space-x-3 mb-2">
-                      <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
-                        {competency.department || 'General'}
-                      </span>
-                      <h3 className="text-lg font-semibold text-gray-900 truncate">
-                        {competency.title || 'N/A'}
-                      </h3>
-                    </div>
-                    
-                    <div className="mb-3">
-                      <p className="text-sm text-gray-600" style={{
-                        display: '-webkit-box',
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: 'vertical',
-                        overflow: 'hidden'
-                      }}>
-                        {competency.definition || 'No description available'}
-                      </p>
-                    </div>
-
-                    <div className="space-y-2 text-sm">
-                      <div>
-                        <h4 className="font-medium text-gray-900 mb-1 text-xs">Basic Behaviours</h4>
-                        <p className="text-gray-600 text-xs" style={{
-                          display: '-webkit-box',
-                          WebkitLineClamp: 1,
-                          WebkitBoxOrient: 'vertical',
-                          overflow: 'hidden'
-                        }}>
-                          {competency.behaviorsBasic || 'Not defined'}
-                        </p>
-                      </div>
-                      <div>
-                        <h4 className="font-medium text-gray-900 mb-1 text-xs">Above Behaviours</h4>
-                        <p className="text-gray-600 text-xs" style={{
-                          display: '-webkit-box',
-                          WebkitLineClamp: 1,
-                          WebkitBoxOrient: 'vertical',
-                          overflow: 'hidden'
-                        }}>
-                          {competency.behaviorsAbove || 'Not defined'}
-                        </p>
-                      </div>
-                      <div>
-                        <h4 className="font-medium text-gray-900 mb-1 text-xs">Outstanding Behaviours</h4>
-                        <p className="text-gray-600 text-xs" style={{
-                          display: '-webkit-box',
-                          WebkitLineClamp: 1,
-                          WebkitBoxOrient: 'vertical',
-                          overflow: 'hidden'
-                        }}>
-                          {competency.behaviorsOutstanding || 'Not defined'}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="flex flex-col space-y-2 ml-4 flex-shrink-0">
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={() => setSelectedCompetency(competency)}
-                      className="text-blue-600 border-blue-200 hover:bg-blue-50 text-xs"
-                    >
-                      <Eye className="h-3 w-3 mr-1" />
-                      View Details
-                    </Button>
-                    <div className="flex space-x-1">
-                      <Button variant="ghost" size="sm" className="p-1">
-                        <Edit className="h-3 w-3" />
-                      </Button>
-                      <Button variant="ghost" size="sm" className="p-1">
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center">
+                  <Users className="h-8 w-8 text-green-600" />
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">Core Competencies</p>
+                    <p className="text-2xl font-bold text-gray-900">
+                      {competencies?.filter((c: Competency) => c.category?.includes('Personal Effectiveness') || c.category?.includes('Values') || c.category?.includes('People')).length || 0}
+                    </p>
                   </div>
                 </div>
-              </div>
-            ))}
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left py-3 px-4 font-medium text-gray-900">Area</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-900">Competency</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-900">Definition</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-900">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredCompetencies.map((competency, index) => (
-                    <tr key={competency.id || index} className="border-b hover:bg-gray-50">
-                      <td className="py-3 px-4 text-sm">
-                        <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
-                          {competency.department || 'General'}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-sm font-medium text-gray-900">
-                        {competency.title || 'N/A'}
-                      </td>
-                      <td className="py-3 px-4 text-sm text-gray-600 max-w-md">
-                        <div className="truncate" title={competency.definition}>
-                          {competency.definition || 'No description available'}
-                        </div>
-                      </td>
-                      <td className="py-3 px-4 text-sm">
-                        <div className="flex items-center space-x-2">
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            onClick={() => setSelectedCompetency(competency)}
-                            className="text-blue-600 border-blue-200 hover:bg-blue-50"
-                          >
-                            <Eye className="h-4 w-4 mr-1" />
-                            View
-                          </Button>
-                          <Button variant="ghost" size="sm">
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="sm">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center">
+                  <Target className="h-8 w-8 text-purple-600" />
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">Faculty Competencies</p>
+                    <p className="text-2xl font-bold text-gray-900">
+                      {competencies?.filter((c: Competency) => c.category?.includes('Faculty')).length || 0}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center">
+                  <TrendingUp className="h-8 w-8 text-orange-600" />
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">Admin Competencies</p>
+                    <p className="text-2xl font-bold text-gray-900">
+                      {competencies?.filter((c: Competency) => c.category?.includes('Administrative')).length || 0}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
-          {filteredCompetencies.length === 0 && (
-            <div className="text-center py-8">
-              <Target className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900">No competencies found</h3>
-              <p className="mt-1 text-sm text-gray-500">
-                {searchTerm || filterArea 
-                  ? 'Try adjusting your search criteria.' 
-                  : 'Get started by adding your first competency.'}
-              </p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Competency Detail Modal would go here */}
-      {selectedCompetency && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <Card className="max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-            <CardHeader>
-              <CardTitle>{selectedCompetency.title}</CardTitle>
-              <CardDescription>{selectedCompetency.department} • {selectedCompetency.cluster || 'CORE'}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <h4 className="font-medium text-gray-900 mb-2">Definition</h4>
-                <p className="text-sm text-gray-600">{selectedCompetency.definition}</p>
-              </div>
-              <div>
-                <h4 className="font-medium text-gray-900 mb-2">Basic Behaviours</h4>
-                <p className="text-sm text-gray-600">{selectedCompetency.behaviorsBasic}</p>
-              </div>
-              <div>
-                <h4 className="font-medium text-gray-900 mb-2">Above Behaviours</h4>
-                <p className="text-sm text-gray-600">{selectedCompetency.behaviorsAbove}</p>
-              </div>
-              <div>
-                <h4 className="font-medium text-gray-900 mb-2">Outstanding Behaviours</h4>
-                <p className="text-sm text-gray-600">{selectedCompetency.behaviorsOutstanding}</p>
+          {/* Filters and Search */}
+          <Card className="mb-6">
+            <CardContent className="p-6">
+              <div className="flex flex-col lg:flex-row gap-4">
+                <div className="flex-1">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                    <Input
+                      placeholder="Search competencies..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
+                <div className="flex gap-4">
+                  <select
+                    value={selectedCluster}
+                    onChange={(e) => setSelectedCluster(e.target.value)}
+                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  >
+                    <option value="ALL">All Clusters</option>
+                    {clusters?.map((cluster: CompetencyCluster) => (
+                      <option key={cluster.id} value={cluster.id}>
+                        {cluster.name}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={selectedCategory}
+                    onChange={(e) => setSelectedCategory(e.target.value)}
+                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  >
+                    <option value="ALL">All Categories</option>
+                    <option value="Personal Effectiveness and Leadership">Personal Effectiveness</option>
+                    <option value="Values and Guiding Principles">Values & Principles</option>
+                    <option value="People Focus">People Focus</option>
+                    <option value="Faculty Competencies">Faculty</option>
+                    <option value="Administrative Competencies">Administrative</option>
+                  </select>
+                  <select
+                    value={selectedLevel}
+                    onChange={(e) => setSelectedLevel(e.target.value)}
+                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  >
+                    <option value="ALL">All Levels</option>
+                    <option value="Basic">Basic</option>
+                    <option value="Intermediate">Intermediate</option>
+                    <option value="Advanced">Advanced</option>
+                    <option value="Expert">Expert</option>
+                  </select>
+                </div>
               </div>
             </CardContent>
-            <div className="flex justify-end space-x-2 p-6 border-t">
-              <Button variant="outline" onClick={() => setSelectedCompetency(null)}>
-                Close
-              </Button>
-              <Button>
-                Edit Competency
-              </Button>
-            </div>
           </Card>
+
+          {/* View Toggle and Results */}
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm text-gray-600">
+                    Showing {filteredCompetencies.length} of {competencies?.length || 0} competencies
+                  </span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Button
+                    variant={viewMode === 'grid' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setViewMode('grid')}
+                  >
+                    <Grid3X3 className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant={viewMode === 'list' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setViewMode('list')}
+                  >
+                    <List className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+
+              {competenciesLoading ? (
+                <div className="text-center py-12">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto"></div>
+                  <p className="mt-4 text-gray-500">Loading competencies...</p>
+                </div>
+              ) : error ? (
+                <div className="text-center py-12">
+                  <div className="text-red-600 mb-4">
+                    <p className="text-lg font-semibold">Error loading competencies</p>
+                    <p className="text-sm">{error.message}</p>
+                  </div>
+                  <Button onClick={() => window.location.reload()}>
+                    Retry
+                  </Button>
+                </div>
+              ) : filteredCompetencies.length === 0 ? (
+                <div className="text-center py-12">
+                  <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-500">No competencies found matching your criteria.</p>
+                </div>
+              ) : viewMode === 'grid' ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {filteredCompetencies.map((competency: Competency) => (
+                    <CompetencyCard key={competency.id} competency={competency} />
+                  ))}
+                </div>
+              ) : (
+                <div>
+                  {filteredCompetencies.map((competency: Competency) => (
+                    <CompetencyListItem key={competency.id} competency={competency} />
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </main>
+      </div>
+
+      {/* Message Display */}
+      {message && (
+        <div className={`fixed top-4 right-4 p-4 rounded-lg border shadow-lg z-50 ${
+          message.type === 'success' 
+            ? 'border-green-200 bg-green-50 text-green-800' 
+            : message.type === 'error'
+            ? 'border-red-200 bg-red-50 text-red-800'
+            : 'border-blue-200 bg-blue-50 text-blue-800'
+        }`}>
+          <div className="flex items-center">
+            {message.type === 'success' && <CheckCircle className="h-5 w-5 mr-2" />}
+            {message.type === 'error' && <AlertCircle className="h-5 w-5 mr-2" />}
+            {message.text}
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="ml-2"
+              onClick={() => setMessage(null)}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       )}
-    </div>
+
+      {/* Competency Modal */}
+      <CompetencyModal
+        isOpen={isModalOpen}
+        onClose={() => {
+          setIsModalOpen(false);
+          setSelectedCompetency(null);
+        }}
+        competency={selectedCompetency}
+        clusters={clusters || []}
+        onSave={(competencyData: any) => handleSaveCompetency(competencyData)}
+        isLoading={createCompetencyMutation.isPending || updateCompetencyMutation.isPending}
+      />
+
+      {/* Import Modal */}
+      {isImportModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <h3 className="text-lg font-semibold mb-4">Import Competencies</h3>
+            <p className="text-gray-600 mb-4">
+              Select a JSON or CSV file to import competencies.
+            </p>
+            <input
+              type="file"
+              accept=".json,.csv"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  handleFileImport(file);
+                }
+              }}
+              className="w-full p-2 border rounded-lg mb-4"
+            />
+            <div className="flex justify-end space-x-2">
+              <Button variant="outline" onClick={() => setIsImportModalOpen(false)}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </Layout>
   );
 }
-
