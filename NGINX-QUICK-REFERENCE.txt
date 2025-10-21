@@ -1,0 +1,134 @@
+============================================
+NGINX QUICK REFERENCE FOR HR SYSTEM
+============================================
+
+NGINX LOCATION:
+  C:\tools\nginx-1.29.2\
+
+CONFIGURATION FILE:
+  C:\tools\nginx-1.29.2\conf\nginx.conf
+
+LOGS:
+  Access: C:\tools\nginx-1.29.2\logs\hrpmg_access.log
+  Error:  C:\tools\nginx-1.29.2\logs\hrpmg_error.log
+
+============================================
+MANAGEMENT COMMANDS
+============================================
+
+Navigate to Nginx directory:
+  cd C:\tools\nginx-1.29.2
+
+Start Nginx:
+  start nginx
+
+Stop Nginx:
+  .\nginx.exe -s stop
+
+Reload configuration (after changes):
+  .\nginx.exe -s reload
+
+Test configuration:
+  .\nginx.exe -t
+
+Check if Nginx is running:
+  Get-Process -Name nginx
+
+View logs (last 20 lines):
+  Get-Content logs\hrpmg_access.log -Tail 20
+  Get-Content logs\hrpmg_error.log -Tail 20
+
+Monitor logs in real-time:
+  Get-Content logs\hrpmg_access.log -Wait
+
+============================================
+YOUR CLEAN URLS
+============================================
+
+HR System:
+  http://hrpmg.costaatt.edu.tt
+  http://hrpmg.costaatt.edu.tt/login
+  http://hrpmg.costaatt.edu.tt/dashboard
+  http://hrpmg.costaatt.edu.tt/appraisals
+
+API Endpoints (proxied through Nginx):
+  http://hrpmg.costaatt.edu.tt/api/...
+  http://hrpmg.costaatt.edu.tt/auth/...
+
+Fallback URLs (still work):
+  http://10.2.1.27:5173
+  http://hrpmg.costaatt.edu.tt:5173
+
+============================================
+SYSTEM STATUS
+============================================
+
+Check all services:
+  # Nginx
+  Get-Process -Name nginx
+  
+  # HR Application
+  netstat -ano | findstr ":3000 :5173"
+  
+  # Port 80 (Nginx)
+  netstat -ano | findstr :80
+
+Check ports:
+  Port 80:   Nginx (reverse proxy)
+  Port 3000: HR Backend
+  Port 5173: HR Frontend
+
+============================================
+TROUBLESHOOTING
+============================================
+
+If clean URL doesn't work:
+  1. Check Nginx is running:
+       Get-Process -Name nginx
+  
+  2. Check port 80 is listening:
+       netstat -ano | findstr :80
+  
+  3. Check Nginx error log:
+       Get-Content C:\tools\nginx-1.29.2\logs\hrpmg_error.log -Tail 50
+  
+  4. Check backend/frontend are running:
+       netstat -ano | findstr ":3000 :5173"
+  
+  5. Test Nginx configuration:
+       cd C:\tools\nginx-1.29.2
+       .\nginx.exe -t
+
+If you get 502 Bad Gateway:
+  - Backend or Frontend is not running
+  - Check: netstat -ano | findstr ":3000 :5173"
+  - Restart if needed
+
+If you need to restart everything:
+  # Stop Nginx
+  cd C:\tools\nginx-1.29.2
+  .\nginx.exe -s stop
+  
+  # Start Nginx
+  start nginx
+  
+  # Check status
+  Get-Process -Name nginx
+
+============================================
+NOTES
+============================================
+
+- Nginx proxies requests from port 80 to your apps
+- /api/* routes go to backend (port 3000)
+- All other routes go to frontend (port 5173)
+- XAMPP Apache must stay stopped (conflicts with port 80)
+- Backend and frontend code updated to use clean URLs
+
+============================================
+FOR MORE DETAILS
+============================================
+
+See: NGINX-REVERSE-PROXY-SETUP.md
+See: CLEAN-URL-SETUP-COMPLETE.md
+
