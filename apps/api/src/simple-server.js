@@ -54,7 +54,9 @@ app.use(cors({
   origin: [
     'http://localhost:5173', 
     'http://10.2.1.27:5173',
-    'http://hrpmg.costaatt.edu.tt:5173'
+    'http://hrpmg.costaatt.edu.tt:5173',
+    'http://hrpmg.costaatt.edu.tt',  // Clean URL via Nginx reverse proxy (no port)
+    'http://www.hrpmg.costaatt.edu.tt'  // Support www subdomain
   ],
   credentials: true
 }));
