@@ -1,0 +1,132 @@
+=========================================================================
+INSTRUCTIONS FOR NEW AGENT - DEPLOYING APP ON SHARED SERVER
+=========================================================================
+
+⚠️ CRITICAL: This server is running a PRODUCTION HR System. Deploy without interfering!
+
+=========================================================================
+EXISTING HR SYSTEM (DO NOT MODIFY)
+=========================================================================
+
+Location: C:\HR\HR\
+Backend: Port 3000 (Node.js/Express API)
+Frontend: Port 5173 (React/Vite)
+Database: costaatt_hr (MySQL on port 3306)
+URLs: 
+  - http://10.2.1.27:5173
+  - http://hrpmg.costaatt.edu.tt:5173
+
+🚫 DO NOT USE THESE PORTS: 3000, 5173, 3306
+🚫 DO NOT MODIFY: costaatt_hr database
+🚫 DO NOT DEPLOY IN: C:\HR\HR\ directory
+
+=========================================================================
+REQUIREMENTS FOR NEW APP DEPLOYMENT
+=========================================================================
+
+1. PORTS:
+   ✅ Backend: Use 3001, 3002, 4000, 5000, 8000, or 8080 (NOT 3000!)
+   ✅ Frontend: Use 5174, 5175, 8081, 8082, or 3030 (NOT 5173!)
+
+2. DATABASE:
+   ✅ Create NEW database: CREATE DATABASE new_app_name_db;
+   🚫 DO NOT use costaatt_hr database
+
+3. DIRECTORY:
+   ✅ Deploy in: C:\Apps\[AppName]\ or C:\[AppName]\
+   🚫 DO NOT deploy in C:\HR\HR\
+
+4. CONFIGURATION:
+   ✅ Create separate .env file with different ports
+   ✅ Use different JWT secrets
+   ✅ Configure CORS to allow both apps
+
+5. FIREWALL:
+   ✅ Add rules for new app's ports:
+      New-NetFirewallRule -DisplayName "NewApp Backend" -Direction Inbound -LocalPort 3001 -Protocol TCP -Action Allow
+      New-NetFirewallRule -DisplayName "NewApp Frontend" -Direction Inbound -LocalPort 5174 -Protocol TCP -Action Allow
+
+=========================================================================
+DEPLOYMENT STEPS
+=========================================================================
+
+1. Clone repo to SEPARATE directory:
+   cd C:\
+   git clone [repo-url] [AppName]
+   cd [AppName]
+
+2. Install dependencies:
+   npm install
+
+3. Create .env file:
+   PORT=3001              # NOT 3000!
+   DATABASE_URL=mysql://root:@localhost:3306/new_app_db  # NOT costaatt_hr!
+   FRONTEND_PORT=5174     # NOT 5173!
+
+4. Create database:
+   mysql -u root -p
+   CREATE DATABASE new_app_db;
+   exit;
+
+5. Run migrations (if needed):
+   npm run migrate
+   or
+   npx prisma migrate deploy
+
+6. Start with PM2:
+   pm2 start backend/server.js --name "newapp-backend"
+   pm2 start npm --name "newapp-frontend" --cwd frontend -- run dev
+   pm2 save
+
+=========================================================================
+VERIFICATION CHECKLIST
+=========================================================================
+
+After deployment, VERIFY:
+☑ HR app still works: http://10.2.1.27:5173
+☑ New app works: http://10.2.1.27:[YOUR_PORT]
+☑ No port conflicts
+☑ Separate databases
+☑ Both apps run simultaneously
+
+=========================================================================
+IF SOMETHING GOES WRONG
+=========================================================================
+
+1. Check HR app is still running: http://10.2.1.27:5173
+2. Check PM2 status: pm2 list
+3. Check port conflicts: netstat -ano | findstr "3000 5173"
+4. If HR app stopped: pm2 restart hr-backend && pm2 restart hr-frontend
+5. Contact HR system administrator if HR app is affected
+
+=========================================================================
+EXAMPLE CONFIGURATION
+=========================================================================
+
+Server File (server.js):
+```javascript
+const PORT = process.env.PORT || 3001;  // NOT 3000!
+app.listen(PORT, () => console.log(`Server on port ${PORT}`));
+```
+
+Frontend Config (vite.config.js):
+```javascript
+export default defineConfig({
+  server: {
+    port: 5174,  // NOT 5173!
+    host: true
+  }
+});
+```
+
+API Config (config.js):
+```javascript
+const API_BASE_URL = 'http://10.2.1.27:3001';  // NOT 3000!
+```
+
+=========================================================================
+REMEMBER: HR system is PRODUCTION. Don't break it!
+=========================================================================
+
+Full detailed instructions available in: INSTRUCTIONS-FOR-NEW-AGENT.md
+
