@@ -4520,11 +4520,12 @@ app.post('/self-evaluations', async (req, res) => {
 
     if (selfEval) {
       // Update existing self-evaluation
+      // Keep status as SELF_EVALUATION even when submitted to prevent it showing in appraisals list
       selfEval = await prisma.appraisalInstance.update({
         where: { id: selfEval.id },
         data: {
           selfAppraisalData: responses,
-          status: status === 'SUBMITTED' ? 'IN_REVIEW' : 'SELF_EVALUATION',
+          status: 'SELF_EVALUATION', // Always keep as SELF_EVALUATION
           updatedAt: new Date()
         },
         include: {
@@ -4546,12 +4547,13 @@ app.post('/self-evaluations', async (req, res) => {
       });
     } else {
       // Create new self-evaluation
+      // Always use SELF_EVALUATION status to prevent it showing in appraisals list
       selfEval = await prisma.appraisalInstance.create({
         data: {
           employeeId: employee.id, // Use the actual employee record ID
           templateId: defaultTemplate.id,
           cycleId: currentCycle.id,
-          status: status === 'SUBMITTED' ? 'IN_REVIEW' : 'SELF_EVALUATION',
+          status: 'SELF_EVALUATION', // Always use SELF_EVALUATION status
           selfAppraisalData: responses,
           createdBy: decoded.sub
         },
