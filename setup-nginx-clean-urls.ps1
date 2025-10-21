@@ -1,0 +1,377 @@
+# ============================================================================
+# Setup Nginx Reverse Proxy for Clean URLs
+# Removes port numbers from HR Performance Management System URLs
+# ============================================================================
+# 
+# Before: http://hrpmg.costaatt.edu.tt:5173/login
+# After:  http://hrpmg.costaatt.edu.tt/login
+#
+# ============================================================================
+
+Write-Host "========================================" -ForegroundColor Cyan
+Write-Host "  Nginx Reverse Proxy Setup Script" -ForegroundColor Cyan
+Write-Host "  HR Performance Management System" -ForegroundColor Cyan
+Write-Host "========================================" -ForegroundColor Cyan
+Write-Host ""
+
+# Check if running as Administrator
+$isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+if (-not $isAdmin) {
+    Write-Host "ERROR: This script must be run as Administrator!" -ForegroundColor Red
+    Write-Host "Right-click PowerShell and select 'Run as Administrator'" -ForegroundColor Yellow
+    Read-Host "Press Enter to exit"
+    exit 1
+}
+
+# Variables
+$nginxPath = "C:\nginx"
+$nginxConfPath = "$nginxPath\conf\nginx.conf"
+$nginxBackupPath = "$nginxPath\conf\nginx.conf.backup"
+
+# ============================================================================
+# Step 1: Check if Chocolatey is installed
+# ============================================================================
+Write-Host "[Step 1/7] Checking for Chocolatey..." -ForegroundColor Yellow
+
+if (-not (Get-Command choco -ErrorAction SilentlyContinue)) {
+    Write-Host "  Installing Chocolatey..." -ForegroundColor Green
+    Set-ExecutionPolicy Bypass -Scope Process -Force
+    [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
+    Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+    
+    # Refresh environment
+    $env:ChocolateyInstall = Convert-Path "$((Get-Command choco).Path)\..\.."
+    Import-Module "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
+    refreshenv
+} else {
+    Write-Host "  ✓ Chocolatey is already installed" -ForegroundColor Green
+}
+
+# ============================================================================
+# Step 2: Install Nginx
+# ============================================================================
+Write-Host ""
+Write-Host "[Step 2/7] Installing Nginx..." -ForegroundColor Yellow
+
+if (-not (Test-Path $nginxPath)) {
+    Write-Host "  Installing Nginx via Chocolatey..." -ForegroundColor Green
+    choco install nginx -y
+    
+    # Wait for installation
+    Start-Sleep -Seconds 5
+    
+    if (Test-Path $nginxPath) {
+        Write-Host "  ✓ Nginx installed successfully at $nginxPath" -ForegroundColor Green
+    } else {
+        Write-Host "  ERROR: Nginx installation failed!" -ForegroundColor Red
+        Read-Host "Press Enter to exit"
+        exit 1
+    }
+} else {
+    Write-Host "  ✓ Nginx is already installed at $nginxPath" -ForegroundColor Green
+}
+
+# ============================================================================
+# Step 3: Stop existing Nginx (if running)
+# ============================================================================
+Write-Host ""
+Write-Host "[Step 3/7] Stopping existing Nginx instances..." -ForegroundColor Yellow
+
+$nginxProcesses = Get-Process -Name nginx -ErrorAction SilentlyContinue
+if ($nginxProcesses) {
+    Write-Host "  Stopping Nginx processes..." -ForegroundColor Green
+    Stop-Process -Name nginx -Force -ErrorAction SilentlyContinue
+    Start-Sleep -Seconds 2
+    Write-Host "  ✓ Nginx stopped" -ForegroundColor Green
+} else {
+    Write-Host "  ✓ No Nginx processes running" -ForegroundColor Green
+}
+
+# ============================================================================
+# Step 4: Backup existing configuration
+# ============================================================================
+Write-Host ""
+Write-Host "[Step 4/7] Backing up existing configuration..." -ForegroundColor Yellow
+
+if (Test-Path $nginxConfPath) {
+    $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+    $backupPath = "$nginxPath\conf\nginx.conf.backup_$timestamp"
+    Copy-Item $nginxConfPath $backupPath
+    Write-Host "  ✓ Configuration backed up to: $backupPath" -ForegroundColor Green
+} else {
+    Write-Host "  ✓ No existing configuration to backup" -ForegroundColor Green
+}
+
+# ============================================================================
+# Step 5: Create Nginx configuration for HR System
+# ============================================================================
+Write-Host ""
+Write-Host "[Step 5/7] Creating Nginx configuration..." -ForegroundColor Yellow
+
+$nginxConfig = @"
+# Nginx Configuration for HR Performance Management System
+# Generated by setup script
+
+worker_processes  1;
+
+events {
+    worker_connections  1024;
+}
+
+http {
+    include       mime.types;
+    default_type  application/octet-stream;
+
+    sendfile        on;
+    keepalive_timeout  65;
+
+    # Upstream definitions for HR System
+    upstream hr_frontend {
+        server 127.0.0.1:5173;
+    }
+
+    upstream hr_backend {
+        server 127.0.0.1:3000;
+    }
+
+    # HR System - Clean URL Configuration
+    server {
+        listen       80;
+        server_name  hrpmg.costaatt.edu.tt;
+
+        # Increase buffer sizes for larger requests
+        client_max_body_size 50M;
+        proxy_buffer_size   128k;
+        proxy_buffers   4 256k;
+        proxy_busy_buffers_size   256k;
+
+        # Logging
+        access_log  logs/hrpmg_access.log;
+        error_log   logs/hrpmg_error.log;
+
+        # Backend API requests (must come first)
+        location /api/ {
+            proxy_pass http://hr_backend/;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade `$http_upgrade;
+            proxy_set_header Connection 'upgrade';
+            proxy_set_header Host `$host;
+            proxy_set_header X-Real-IP `$remote_addr;
+            proxy_set_header X-Forwarded-For `$proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto `$scheme;
+            proxy_cache_bypass `$http_upgrade;
+            
+            # Timeout settings
+            proxy_connect_timeout 600;
+            proxy_send_timeout 600;
+            proxy_read_timeout 600;
+            send_timeout 600;
+        }
+
+        # Auth endpoints
+        location /auth/ {
+            proxy_pass http://hr_backend/auth/;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade `$http_upgrade;
+            proxy_set_header Connection 'upgrade';
+            proxy_set_header Host `$host;
+            proxy_set_header X-Real-IP `$remote_addr;
+            proxy_set_header X-Forwarded-For `$proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto `$scheme;
+            proxy_cache_bypass `$http_upgrade;
+        }
+
+        # All other backend endpoints (appraisals, employees, etc.)
+        location ~ ^/(appraisals|employees|competencies|cycles|templates|self-evaluations|users) {
+            proxy_pass http://hr_backend;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade `$http_upgrade;
+            proxy_set_header Connection 'upgrade';
+            proxy_set_header Host `$host;
+            proxy_set_header X-Real-IP `$remote_addr;
+            proxy_set_header X-Forwarded-For `$proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto `$scheme;
+            proxy_cache_bypass `$http_upgrade;
+        }
+
+        # Frontend (all other requests)
+        location / {
+            proxy_pass http://hr_frontend;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade `$http_upgrade;
+            proxy_set_header Connection 'upgrade';
+            proxy_set_header Host `$host;
+            proxy_set_header X-Real-IP `$remote_addr;
+            proxy_set_header X-Forwarded-For `$proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto `$scheme;
+            proxy_cache_bypass `$http_upgrade;
+        }
+
+        # Error pages
+        error_page   500 502 503 504  /50x.html;
+        location = /50x.html {
+            root   html;
+        }
+    }
+
+    # Redirect www to non-www
+    server {
+        listen       80;
+        server_name  www.hrpmg.costaatt.edu.tt;
+        return 301 http://hrpmg.costaatt.edu.tt`$request_uri;
+    }
+
+    # Catch-all for IP address access (redirect to domain)
+    server {
+        listen       80 default_server;
+        server_name  _;
+        return 301 http://hrpmg.costaatt.edu.tt`$request_uri;
+    }
+}
+"@
+
+Set-Content -Path $nginxConfPath -Value $nginxConfig -Encoding UTF8
+Write-Host "  ✓ Nginx configuration created" -ForegroundColor Green
+
+# ============================================================================
+# Step 6: Configure Windows Firewall
+# ============================================================================
+Write-Host ""
+Write-Host "[Step 6/7] Configuring Windows Firewall..." -ForegroundColor Yellow
+
+# Check if firewall rule exists
+$firewallRule = Get-NetFirewallRule -DisplayName "Nginx HTTP" -ErrorAction SilentlyContinue
+
+if (-not $firewallRule) {
+    Write-Host "  Adding firewall rule for port 80..." -ForegroundColor Green
+    New-NetFirewallRule -DisplayName "Nginx HTTP" `
+        -Direction Inbound `
+        -LocalPort 80 `
+        -Protocol TCP `
+        -Action Allow | Out-Null
+    Write-Host "  ✓ Firewall rule added" -ForegroundColor Green
+} else {
+    Write-Host "  ✓ Firewall rule already exists" -ForegroundColor Green
+}
+
+# ============================================================================
+# Step 7: Test and Start Nginx
+# ============================================================================
+Write-Host ""
+Write-Host "[Step 7/7] Testing and starting Nginx..." -ForegroundColor Yellow
+
+# Test configuration
+Write-Host "  Testing Nginx configuration..." -ForegroundColor Green
+Set-Location $nginxPath
+$testResult = & .\nginx.exe -t 2>&1
+
+if ($LASTEXITCODE -eq 0) {
+    Write-Host "  ✓ Configuration test passed" -ForegroundColor Green
+} else {
+    Write-Host "  ERROR: Configuration test failed!" -ForegroundColor Red
+    Write-Host $testResult
+    Read-Host "Press Enter to exit"
+    exit 1
+}
+
+# Start Nginx
+Write-Host "  Starting Nginx..." -ForegroundColor Green
+Start-Process -FilePath "$nginxPath\nginx.exe" -WorkingDirectory $nginxPath -WindowStyle Hidden
+
+Start-Sleep -Seconds 2
+
+# Verify Nginx is running
+$nginxRunning = Get-Process -Name nginx -ErrorAction SilentlyContinue
+if ($nginxRunning) {
+    Write-Host "  ✓ Nginx started successfully" -ForegroundColor Green
+} else {
+    Write-Host "  ERROR: Failed to start Nginx!" -ForegroundColor Red
+    Read-Host "Press Enter to exit"
+    exit 1
+}
+
+# ============================================================================
+# Setup Complete!
+# ============================================================================
+Write-Host ""
+Write-Host "========================================" -ForegroundColor Green
+Write-Host "  ✓ SETUP COMPLETE!" -ForegroundColor Green
+Write-Host "========================================" -ForegroundColor Green
+Write-Host ""
+
+Write-Host "Clean URLs are now configured!" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "Your HR system is now accessible at:" -ForegroundColor White
+Write-Host "  • http://hrpmg.costaatt.edu.tt" -ForegroundColor Yellow
+Write-Host "  • http://hrpmg.costaatt.edu.tt/login" -ForegroundColor Yellow
+Write-Host ""
+
+Write-Host "Old URLs still work as fallback:" -ForegroundColor White
+Write-Host "  • http://10.2.1.27:5173" -ForegroundColor Gray
+Write-Host "  • http://hrpmg.costaatt.edu.tt:5173" -ForegroundColor Gray
+Write-Host ""
+
+Write-Host "Next Steps:" -ForegroundColor Cyan
+Write-Host "  1. Update frontend configuration to use clean URLs" -ForegroundColor White
+Write-Host "     File: apps\web\src\lib\config.ts" -ForegroundColor Gray
+Write-Host ""
+Write-Host "  2. Update backend CORS to allow clean URL" -ForegroundColor White
+Write-Host "     File: apps\api\src\simple-server.js" -ForegroundColor Gray
+Write-Host ""
+Write-Host "  3. Test the system:" -ForegroundColor White
+Write-Host "     Open browser: http://hrpmg.costaatt.edu.tt" -ForegroundColor Gray
+Write-Host ""
+
+Write-Host "Nginx Management Commands:" -ForegroundColor Cyan
+Write-Host "  • Stop:    cd C:\nginx && .\nginx.exe -s stop" -ForegroundColor White
+Write-Host "  • Reload:  cd C:\nginx && .\nginx.exe -s reload" -ForegroundColor White
+Write-Host "  • Test:    cd C:\nginx && .\nginx.exe -t" -ForegroundColor White
+Write-Host ""
+
+Write-Host "Nginx Logs:" -ForegroundColor Cyan
+Write-Host "  • Access:  C:\nginx\logs\hrpmg_access.log" -ForegroundColor White
+Write-Host "  • Error:   C:\nginx\logs\hrpmg_error.log" -ForegroundColor White
+Write-Host ""
+
+Write-Host "For detailed instructions, see:" -ForegroundColor Cyan
+Write-Host "  NGINX-REVERSE-PROXY-SETUP.md" -ForegroundColor Yellow
+Write-Host ""
+
+# Ask if user wants to setup auto-start
+Write-Host "Would you like to configure Nginx to start automatically on boot? (Y/N): " -ForegroundColor Cyan -NoNewline
+$response = Read-Host
+
+if ($response -eq "Y" -or $response -eq "y") {
+    Write-Host ""
+    Write-Host "Setting up auto-start..." -ForegroundColor Yellow
+    
+    # Check if NSSM is installed
+    if (-not (Get-Command nssm -ErrorAction SilentlyContinue)) {
+        Write-Host "  Installing NSSM (Non-Sucking Service Manager)..." -ForegroundColor Green
+        choco install nssm -y
+    }
+    
+    # Create Windows service
+    Write-Host "  Creating Windows service..." -ForegroundColor Green
+    nssm install nginx "$nginxPath\nginx.exe"
+    nssm set nginx AppDirectory "$nginxPath"
+    nssm set nginx DisplayName "Nginx Reverse Proxy"
+    nssm set nginx Description "Nginx reverse proxy for HR Performance Management System"
+    nssm set nginx Start SERVICE_AUTO_START
+    
+    # Start the service
+    nssm start nginx
+    
+    Write-Host "  ✓ Nginx configured to start automatically" -ForegroundColor Green
+    Write-Host ""
+    Write-Host "Service Management Commands:" -ForegroundColor Cyan
+    Write-Host "  • Start:   nssm start nginx" -ForegroundColor White
+    Write-Host "  • Stop:    nssm stop nginx" -ForegroundColor White
+    Write-Host "  • Restart: nssm restart nginx" -ForegroundColor White
+    Write-Host "  • Status:  Get-Service nginx" -ForegroundColor White
+    Write-Host ""
+}
+
+Write-Host "Press Enter to exit..." -ForegroundColor Gray
+Read-Host
+
