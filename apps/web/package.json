@@ -23,6 +23,7 @@
     "@types/passport-oauth2": "^1.8.0",
     "axios": "^1.12.2",
     "clsx": "^2.1.1",
+    "jspdf": "^3.0.3",
     "lucide-react": "^0.545.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

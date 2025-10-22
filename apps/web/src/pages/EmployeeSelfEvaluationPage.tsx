@@ -12,8 +12,10 @@ import {
   Send,
   AlertCircle,
   User,
-  Calendar
+  Calendar,
+  Download
 } from 'lucide-react';
+import { generateCurrentSelfEvaluationPDF } from '../utils/pdfGenerator';
 
 export function EmployeeSelfEvaluationPage() {
   const { user } = useAuth();
@@ -191,6 +193,31 @@ export function EmployeeSelfEvaluationPage() {
     setIsEditing(true);
   };
 
+  const handleDownloadPDF = () => {
+    try {
+      const employeeName = `${user?.firstName || ''} ${user?.lastName || ''}`.trim();
+      const employeeEmail = user?.email || '';
+      const responses = selfEvaluationData?.responses || formData;
+      
+      generateCurrentSelfEvaluationPDF(employeeName, employeeEmail, responses);
+      
+      addToast({
+        type: 'success',
+        title: 'PDF Downloaded',
+        description: 'Your self-evaluation has been downloaded as a PDF.',
+        duration: 3000
+      });
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      addToast({
+        type: 'error',
+        title: 'PDF Generation Failed',
+        description: 'Failed to generate PDF. Please try again.',
+        duration: 5000
+      });
+    }
+  };
+
   if (isLoading) {
     return (
       <Layout>
@@ -226,13 +253,22 @@ export function EmployeeSelfEvaluationPage() {
                   </button>
                 )}
                 {!isEditing && selfEvaluationData && (
-                  <button
-                    onClick={handleEdit}
-                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                  >
-                    <Edit className="w-4 h-4 mr-2" />
-                    Edit Evaluation
-                  </button>
+                  <div className="flex space-x-3">
+                    <button
+                      onClick={handleEdit}
+                      className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                    >
+                      <Edit className="w-4 h-4 mr-2" />
+                      Edit Evaluation
+                    </button>
+                    <button
+                      onClick={handleDownloadPDF}
+                      className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+                    >
+                      <Download className="w-4 h-4 mr-2" />
+                      Download PDF
+                    </button>
+                  </div>
                 )}
                 {isEditing && (
                   <div className="flex space-x-3">

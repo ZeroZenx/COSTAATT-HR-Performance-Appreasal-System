@@ -9,12 +9,36 @@ import {
   Eye,
   Calendar,
   User,
-  ArrowLeft
+  ArrowLeft,
+  Download
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { generateSelfEvaluationPDF } from '../utils/pdfGenerator';
 
 export function SelfEvaluationHistoryPage() {
   const { user } = useAuth();
+
+  const handleDownloadPDF = (selfEval: any) => {
+    try {
+      const data = {
+        id: selfEval.id,
+        employee: {
+          firstName: user?.firstName || '',
+          lastName: user?.lastName || '',
+          email: user?.email || '',
+          title: user?.title || '',
+          dept: user?.dept || ''
+        },
+        responses: selfEval.responses || {},
+        createdAt: selfEval.createdAt,
+        cycle: selfEval.cycle
+      };
+      
+      generateSelfEvaluationPDF(data);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+    }
+  };
 
   // Fetch all self-evaluations for the user
   const { data: selfEvaluations = [], isLoading, error } = useQuery({
@@ -171,6 +195,13 @@ export function SelfEvaluationHistoryPage() {
                     </div>
                     <div className="flex items-center space-x-3">
                       {getStatusBadge(selfEval.status)}
+                      <button
+                        onClick={() => handleDownloadPDF(selfEval)}
+                        className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+                      >
+                        <Download className="w-4 h-4 mr-1.5" />
+                        PDF
+                      </button>
                       <Link
                         to={`/self-evaluation/${selfEval.id}/view`}
                         className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
