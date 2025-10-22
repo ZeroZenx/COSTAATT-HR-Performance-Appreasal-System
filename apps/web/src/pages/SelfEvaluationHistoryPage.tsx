@@ -138,13 +138,7 @@ export function SelfEvaluationHistoryPage() {
           <div className="mb-8">
             <div className="flex items-center justify-between">
               <div>
-                <div className="flex items-center mb-2">
-                  <Link 
-                    to="/dashboard" 
-                    className="mr-4 p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                  >
-                    <ArrowLeft className="w-5 h-5 text-gray-600" />
-                  </Link>
+                <div className="mb-2">
                   <h1 className="text-3xl font-bold text-gray-900">My Self-Evaluations</h1>
                 </div>
                 <p className="text-gray-600">View your submitted self-evaluation history</p>
