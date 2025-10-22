@@ -46,8 +46,10 @@ export function Layout({ children }: LayoutProps) {
         <main className="flex-1 overflow-auto">
           {/* Navigation Bar - Only show on non-dashboard pages */}
           {showNavigation && (
-            <div className="bg-white border-b border-gray-200 px-4 py-3">
-              <NavigationButtons />
+            <div className="bg-white shadow-sm border-b sticky top-0 z-40">
+              <div className="px-6 py-6">
+                <NavigationButtons />
+              </div>
             </div>
           )}
           {children}
