@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Footer } from './Footer';
 import { ChatbotWidget } from './ChatbotWidget';
@@ -12,6 +13,10 @@ interface LayoutProps {
 export function Layout({ children }: LayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { isOpen, toggleChatbot } = useChatbot();
+  const location = useLocation();
+
+  // Don't show navigation buttons on dashboard
+  const showNavigation = location.pathname !== '/dashboard';
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -39,10 +44,12 @@ export function Layout({ children }: LayoutProps) {
 
         {/* Main content */}
         <main className="flex-1 overflow-auto">
-          {/* Navigation Bar */}
-          <div className="bg-white border-b border-gray-200 px-4 py-3">
-            <NavigationButtons />
-          </div>
+          {/* Navigation Bar - Only show on non-dashboard pages */}
+          {showNavigation && (
+            <div className="bg-white border-b border-gray-200 px-4 py-3">
+              <NavigationButtons />
+            </div>
+          )}
           {children}
         </main>
         

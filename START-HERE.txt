@@ -1,0 +1,133 @@
+================================================================================
+  HR PERFORMANCE MANAGEMENT SYSTEM - SSL & CLEAN URLS SETUP COMPLETE
+================================================================================
+
+YOUR NEW URL:
+  https://hrpmg.costaatt.edu.tt
+
+OLD URL (still works):
+  http://hrpmg.costaatt.edu.tt:5173
+
+================================================================================
+  IMPORTANT: FIRST-TIME BROWSER WARNING
+================================================================================
+
+When you first visit https://hrpmg.costaatt.edu.tt, you'll see a security
+warning. This is NORMAL for self-signed certificates on internal networks.
+
+TO PROCEED:
+1. Click "Advanced"
+2. Click "Proceed to hrpmg.costaatt.edu.tt (unsafe)"
+3. You won't see this warning again!
+
+This is a secure connection - the warning is only because the certificate
+is self-signed rather than from a commercial authority.
+
+================================================================================
+  WHAT'S NEW
+================================================================================
+
+✓ SSL/HTTPS Encryption - All data is now encrypted
+✓ Clean URLs - No more port numbers in the URL
+✓ Automatic Redirect - HTTP automatically redirects to HTTPS
+✓ Professional Setup - Easy to share and remember
+
+================================================================================
+  MANAGING THE SYSTEM
+================================================================================
+
+CHECK IF SERVICES ARE RUNNING:
+  Get-Process httpd        (Apache should be running)
+  pm2 list                 (hr-backend and hr-frontend should be "online")
+
+RESTART SERVICES IF NEEDED:
+  C:\xampp\apache\bin\httpd.exe -k restart   (Restart Apache)
+  pm2 restart hr-backend                      (Restart backend)
+  pm2 restart hr-frontend                     (Restart frontend)
+
+VIEW LOGS:
+  pm2 logs hr-backend
+  pm2 logs hr-frontend
+
+================================================================================
+  FILES & DOCUMENTATION
+================================================================================
+
+Quick Reference:
+  - START-HERE.txt (this file)
+  - HR-SSL-SETUP-SUMMARY.md (detailed summary)
+
+Full Documentation:
+  - APACHE-SSL-SETUP-COMPLETE.md (complete guide)
+  - setup-apache-ssl-simple.ps1 (setup script used)
+
+Configuration Files:
+  - C:\xampp\apache\conf\extra\httpd-hr-vhost.conf (Apache vhost)
+  - C:\xampp\apache\conf\ssl.crt\hrpmg.costaatt.edu.tt.crt (SSL cert)
+  - apps\api\src\simple-server.js (Backend CORS config)
+  - apps\web\src\lib\config.ts (Frontend API config)
+
+================================================================================
+  TROUBLESHOOTING
+================================================================================
+
+PROBLEM: Can't access https://hrpmg.costaatt.edu.tt
+
+1. Check Apache is running:
+   Get-Process httpd
+
+2. Check backend and frontend:
+   pm2 list
+
+3. Restart if needed:
+   C:\xampp\apache\bin\httpd.exe -k restart
+   pm2 restart hr-backend
+   pm2 restart hr-frontend
+
+PROBLEM: Login not working
+
+1. Restart backend:
+   pm2 restart hr-backend
+
+2. Check backend logs:
+   pm2 logs hr-backend --lines 50
+
+PROBLEM: Still seeing port numbers in URL
+
+Make sure you're accessing via:
+  https://hrpmg.costaatt.edu.tt
+NOT:
+  http://hrpmg.costaatt.edu.tt:5173
+
+================================================================================
+  SUMMARY
+================================================================================
+
+Your HR Performance Management System is now:
+  ✓ Accessible via https://hrpmg.costaatt.edu.tt
+  ✓ Secured with SSL/TLS encryption
+  ✓ Using clean, professional URLs
+  ✓ Automatically redirecting HTTP to HTTPS
+
+Share the new URL with your users:
+  https://hrpmg.costaatt.edu.tt
+
+Remind them to click "Advanced" → "Proceed to site" on first visit.
+
+================================================================================
+  QUESTIONS?
+================================================================================
+
+See the following documentation files:
+  - HR-SSL-SETUP-SUMMARY.md (quick overview)
+  - APACHE-SSL-SETUP-COMPLETE.md (detailed guide)
+
+Or check the configuration files listed above.
+
+================================================================================
+
+Congratulations! Your HR system is now secure and accessible via clean URLs!
+
+================================================================================
+
+

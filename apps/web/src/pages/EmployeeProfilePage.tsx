@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 
 export function EmployeeProfilePage() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
@@ -47,6 +47,24 @@ export function EmployeeProfilePage() {
     enabled: !!user?.id
   });
 
+  // Update form data when employee data is loaded
+  React.useEffect(() => {
+    if (employeeData) {
+      setFormData({
+        firstName: employeeData.firstName || user?.firstName || '',
+        lastName: employeeData.lastName || user?.lastName || '',
+        email: employeeData.email || user?.email || '',
+        title: employeeData.title || user?.title || '',
+        dept: employeeData.dept || user?.dept || '',
+        phone: employeeData.employee?.phone || '',
+        address: employeeData.employee?.address || '',
+        employeeId: employeeData.employee?.employeeId || '',
+        hireDate: employeeData.employee?.hireDate || '',
+        supervisor: employeeData.employee?.supervisor?.user?.firstName + ' ' + employeeData.employee?.supervisor?.user?.lastName || ''
+      });
+    }
+  }, [employeeData, user]);
+
   // Update profile mutation
   const updateProfileMutation = useMutation({
     mutationFn: async (profileData: typeof formData) => {
@@ -69,16 +87,27 @@ export function EmployeeProfilePage() {
 
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       // Invalidate and refetch user data
       queryClient.invalidateQueries({ queryKey: ['employee-profile', user?.id] });
+      // Refresh user context to update the user object
+      await refreshUser();
       setIsEditing(false);
-      // You could add a toast notification here
-      console.log('Profile updated successfully');
+      addToast({
+        type: 'success',
+        title: 'Profile Updated',
+        description: 'Your profile has been updated successfully.',
+        duration: 3000
+      });
     },
     onError: (error) => {
       console.error('Error updating profile:', error);
-      // You could add error toast notification here
+      addToast({
+        type: 'error',
+        title: 'Update Failed',
+        description: error.message || 'Failed to update profile. Please try again.',
+        duration: 5000
+      });
     }
   });
 

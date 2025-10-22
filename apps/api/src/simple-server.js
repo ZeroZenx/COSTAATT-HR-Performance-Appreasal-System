@@ -55,8 +55,10 @@ app.use(cors({
     'http://localhost:5173', 
     'http://10.2.1.27:5173',
     'http://hrpmg.costaatt.edu.tt:5173',
-    'http://hrpmg.costaatt.edu.tt',  // Clean URL via Nginx reverse proxy (no port)
-    'http://www.hrpmg.costaatt.edu.tt'  // Support www subdomain
+    'http://hrpmg.costaatt.edu.tt',  // Clean URL via reverse proxy (no port)
+    'http://www.hrpmg.costaatt.edu.tt',  // Support www subdomain
+    'https://hrpmg.costaatt.edu.tt',  // HTTPS Clean URL
+    'https://www.hrpmg.costaatt.edu.tt'  // HTTPS www subdomain
   ],
   credentials: true
 }));
@@ -584,6 +586,84 @@ app.get('/employees', async (req, res) => {
   } catch (error) {
     console.error('Error fetching employees:', error);
     res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// Get employee by ID (for Profile page)
+app.get('/employees/:id', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ success: false, message: 'Authorization token required' });
+    }
+
+    const token = authHeader.substring(7);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production');
+    
+    const { id } = req.params;
+
+    // Verify the user can access this employee data
+    if (decoded.sub !== id && decoded.role !== 'HR_ADMIN') {
+      return res.status(403).json({ success: false, message: 'Access denied' });
+    }
+
+    // Get user data
+    const user = await prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        role: true,
+        dept: true,
+        title: true,
+        active: true,
+        createdAt: true,
+        updatedAt: true
+      }
+    });
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    // Get employee record if it exists
+    const employee = await prisma.employee.findUnique({
+      where: { userId: id },
+      select: {
+        id: true,
+        employeeId: true,
+        hireDate: true,
+        phone: true,
+        address: true,
+        supervisorId: true,
+        supervisor: {
+          select: {
+            user: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+                title: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    res.json({ 
+      success: true, 
+      data: {
+        ...user,
+        employee: employee
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching employee:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
 
@@ -1416,6 +1496,32 @@ app.put('/users/:id/profile', async (req, res) => {
         active: true
       }
     });
+
+    // Update employee record if it exists and phone/address are provided
+    if (phone || address) {
+      const employee = await prisma.employee.findUnique({
+        where: { userId: id }
+      });
+
+      if (employee) {
+        await prisma.employee.update({
+          where: { userId: id },
+          data: {
+            phone: phone || employee.phone,
+            address: address || employee.address
+          }
+        });
+      } else if (phone || address) {
+        // Create employee record if it doesn't exist
+        await prisma.employee.create({
+          data: {
+            userId: id,
+            phone: phone || '',
+            address: address || ''
+          }
+        });
+      }
+    }
 
     res.json({ success: true, message: 'Profile updated successfully', data: updatedUser });
   } catch (error) {
@@ -4576,6 +4682,62 @@ app.post('/self-evaluations', async (req, res) => {
           }
         }
       });
+    }
+
+    // Send email confirmation if submitted
+    if (status === 'SUBMITTED') {
+      try {
+        const sendgridService = require('./utils/sendgridService');
+        
+        // Create email content with responses
+        const responsesHtml = Object.entries(responses || {}).map(([key, value]) => {
+          const questionNumber = key.replace('question', '');
+          return `
+            <div style="margin-bottom: 15px; padding: 10px; background-color: #f8f9fa; border-left: 4px solid #6c5ce7;">
+              <strong>Question ${questionNumber}:</strong><br/>
+              <div style="margin-top: 5px; color: #333;">${value || 'No response provided'}</div>
+            </div>
+          `;
+        }).join('');
+
+        await sendgridService.sendEmailWithRetry({
+          to: selfEval.employee.user.email,
+          subject: `Self-Evaluation Submitted - ${selfEval.employee.user.firstName} ${selfEval.employee.user.lastName}`,
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <h2 style="color: #6c5ce7; border-bottom: 2px solid #6c5ce7; padding-bottom: 10px;">
+                Self-Evaluation Submitted Successfully
+              </h2>
+              
+              <p>Dear ${selfEval.employee.user.firstName} ${selfEval.employee.user.lastName},</p>
+              
+              <p>Your self-evaluation has been successfully submitted for the current appraisal cycle. 
+              A copy of your responses is included below for your records.</p>
+              
+              <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                <h3 style="color: #333; margin-top: 0;">Your Self-Evaluation Responses:</h3>
+                ${responsesHtml}
+              </div>
+              
+              <p><strong>Important Notes:</strong></p>
+              <ul>
+                <li>Please keep this email as a record of your submission</li>
+                <li>Your supervisor will review your self-evaluation</li>
+                <li>You will be notified when the review process is complete</li>
+              </ul>
+              
+              <p>If you have any questions, please contact HR.</p>
+              
+              <p>Best regards,<br/>
+              COSTAATT HR Performance Management System</p>
+            </div>
+          `,
+          type: 'self_evaluation_submitted'
+        });
+      } catch (emailError) {
+        console.error('Failed to send self-evaluation confirmation email:', emailError);
+        // Don't fail the request if email fails
+      }
     }
 
     res.json({ 
