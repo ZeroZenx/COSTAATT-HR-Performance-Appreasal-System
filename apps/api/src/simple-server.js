@@ -1,4 +1,6 @@
-require('dotenv').config();
+// Load environment variables from apps/api/.env
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 const express = require('express');
 const cors = require('cors');
 const { PrismaClient } = require('@prisma/client');
@@ -1141,7 +1143,68 @@ app.post('/templates', async (req, res) => {
 app.put('/templates/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const updateData = req.body;
+    const body = req.body;
+    
+    // Build update data with only valid Prisma fields
+    // Note: description should be stored in configJson.metadata, not as a direct field
+    const updateData = {};
+    
+    // Valid fields that exist in the Prisma schema
+    if (body.name !== undefined) updateData.name = body.name;
+    if (body.displayName !== undefined) updateData.displayName = body.displayName;
+    if (body.type !== undefined) updateData.type = body.type;
+    if (body.version !== undefined) updateData.version = body.version;
+    if (body.published !== undefined) updateData.published = body.published;
+    if (body.active !== undefined) updateData.active = body.active;
+    
+    // Handle configJson - merge description into metadata if provided separately
+    if (body.configJson !== undefined) {
+      const configJson = { ...body.configJson };
+      // If description is provided separately, merge it into configJson.metadata
+      if (body.description !== undefined) {
+        configJson.metadata = {
+          ...(configJson.metadata || {}),
+          description: body.description,
+        };
+      }
+      updateData.configJson = configJson;
+    } else if (body.description !== undefined) {
+      // If only description is provided without configJson, preserve existing configJson
+      const existingTemplate = await prisma.appraisalTemplate.findUnique({
+        where: { id },
+        select: { configJson: true }
+      });
+      const existingConfig = (existingTemplate?.configJson || {});
+      updateData.configJson = {
+        ...existingConfig,
+        metadata: {
+          ...(existingConfig.metadata || {}),
+          description: body.description,
+        },
+      };
+    }
+    
+    // Handle templateStructure (JSON field)
+    if (body.templateStructure !== undefined) {
+      updateData.templateStructure = body.templateStructure;
+    }
+    
+    // Handle weighting (JSON field)
+    if (body.weighting !== undefined) {
+      updateData.weighting = body.weighting;
+    }
+    
+    // Handle code (optional unique field)
+    if (body.code !== undefined) updateData.code = body.code;
+    
+    // Handle filePath (optional field)
+    if (body.filePath !== undefined) updateData.filePath = body.filePath;
+    
+    // Handle categoryId (optional relation field)
+    if (body.categoryId !== undefined) updateData.categoryId = body.categoryId;
+    
+    console.log('Updating template:', id);
+    console.log('Update data keys:', Object.keys(updateData));
     
     const template = await prisma.appraisalTemplate.update({
       where: { id },
@@ -1151,7 +1214,24 @@ app.put('/templates/:id', async (req, res) => {
     res.json(template);
   } catch (error) {
     console.error('Error updating template:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      meta: error.meta,
+    });
+    
+    // Provide more helpful error messages
+    if (error.code === 'P2002') {
+      return res.status(400).json({ message: 'A template with this name already exists' });
+    }
+    if (error.code === 'P2025') {
+      return res.status(404).json({ message: 'Template not found' });
+    }
+    
+    res.status(500).json({ 
+      message: error.message || 'Internal server error',
+      details: process.env.NODE_ENV !== 'production' ? error.message : undefined
+    });
   }
 });
 

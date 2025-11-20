@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Search, Trash2, Eye, Copy, Settings, Edit, Play, Pause, Archive, BarChart3 } from 'lucide-react';
 import { Button } from '../components/ui/button';
@@ -12,6 +12,8 @@ import { TemplateBuilder } from '../components/TemplateBuilder';
 import { TemplateImportExport, TemplateBackup } from '../components/TemplateImportExport';
 import { TemplateAnalytics } from '../components/TemplateAnalytics';
 import { templatesApi } from '../lib/api';
+import { ScoringConfig } from '@costaatt/shared';
+import { useToast } from '../components/ui/toast';
 
 interface AppraisalTemplate {
   id: string;
@@ -33,6 +35,352 @@ interface AppraisalTemplate {
   sections?: any[];
 }
 
+const TEMPLATE_TYPE_OPTIONS: { value: string; label: string }[] = [
+  { value: 'FACULTY', label: 'Faculty' },
+  { value: 'GENERAL_STAFF', label: 'General Staff' },
+  { value: 'EXECUTIVE', label: 'Executive' },
+  { value: 'EXECUTIVE_MANAGEMENT', label: 'Executive Management' },
+  { value: 'CLINICAL', label: 'Clinical Instructor' },
+  { value: 'CLINICAL_INSTRUCTOR', label: 'Clinical Instructor (Legacy)' },
+  { value: 'DEAN', label: 'Dean' },
+];
+
+const DEFAULT_SCORING_CONFIGS: Record<string, ScoringConfig> = {
+  DEAN: {
+    denominators: {
+      functional: 117,
+      core: 99,
+      projects: 12,
+    },
+    weights: {
+      functional: 0.5,
+      core: 0.3,
+      projects: 0.2,
+    },
+    maxScores: {
+      functional: 117,
+      core: 99,
+      projects: 12,
+    },
+  },
+  FACULTY: {
+    denominators: {
+      functional: 114,
+      core: 99,
+      studentEvaluations: 50,
+      projects: 12,
+    },
+    weights: {
+      functional: 0.5,
+      core: 0.3,
+      studentEvaluations: 0.2,
+      projects: 0.0,
+    },
+    maxScores: {
+      functional: 114,
+      core: 99,
+      studentEvaluations: 50,
+      projects: 12,
+    },
+  },
+  CLINICAL: {
+    denominators: {
+      functional: 81,
+      core: 72,
+      studentEvaluations: 30,
+    },
+    weights: {
+      functional: 0.6,
+      core: 0.2,
+      studentEvaluations: 0.2,
+    },
+    maxScores: {
+      functional: 81,
+      core: 72,
+      studentEvaluations: 30,
+    },
+  },
+  CLINICAL_INSTRUCTOR: {
+    denominators: {
+      functional: 81,
+      core: 72,
+      studentEvaluations: 30,
+    },
+    weights: {
+      functional: 0.6,
+      core: 0.2,
+      studentEvaluations: 0.2,
+    },
+    maxScores: {
+      functional: 81,
+      core: 72,
+      studentEvaluations: 30,
+    },
+  },
+  EXECUTIVE: {
+    denominators: { overall: 100 },
+    weights: { overall: 1 },
+    maxScores: { overall: 100 },
+  },
+  EXECUTIVE_MANAGEMENT: {
+    denominators: { overall: 100 },
+    weights: { overall: 1 },
+    maxScores: { overall: 100 },
+  },
+  GENERAL_STAFF: {
+    denominators: { overall: 100 },
+    weights: { overall: 1 },
+    maxScores: { overall: 100 },
+  },
+};
+
+const ensureWeightsSumToOne = <T extends ScoringConfig>(config: T): T => {
+  const totalWeight = Object.values(config.weights).reduce((sum, weight) => sum + weight, 0);
+
+  if (totalWeight === 0) {
+    return {
+      ...config,
+      weights: { default: 1 },
+      denominators: { default: 100 },
+      maxScores: { default: 100 },
+    };
+  }
+
+  if (Math.abs(totalWeight - 1) < 0.001) {
+    return config;
+  }
+
+  const normalizedWeights = Object.entries(config.weights).reduce<Record<string, number>>((acc, [key, value]) => {
+    acc[key] = value / totalWeight;
+    return acc;
+  }, {});
+
+  return {
+    ...config,
+    weights: normalizedWeights as T['weights'],
+  };
+};
+
+const getDefaultScoringConfig = (type: string): ScoringConfig => {
+  const baseConfig = DEFAULT_SCORING_CONFIGS[type] || DEFAULT_SCORING_CONFIGS.GENERAL_STAFF;
+  return ensureWeightsSumToOne(JSON.parse(JSON.stringify(baseConfig)));
+};
+
+const formatTemplateTypeLabel = (type: string) => {
+  if (!type) return 'Unknown';
+  return type
+    .toLowerCase()
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+};
+
+const getTemplateTypeLabel = (type: string) => {
+  return TEMPLATE_TYPE_OPTIONS.find((option) => option.value === type)?.label || formatTemplateTypeLabel(type);
+};
+
+const parseConfigJson = (config?: any) => {
+  if (!config) return null;
+
+  if (typeof config === 'string') {
+    try {
+      return JSON.parse(config);
+    } catch (error) {
+      console.error('Failed to parse configJson string', error);
+      return null;
+    }
+  }
+
+  return config;
+};
+
+const extractErrorMessage = (error: any) => {
+  if (error?.response?.data?.message) {
+    return Array.isArray(error.response.data.message)
+      ? error.response.data.message.join(', ')
+      : error.response.data.message;
+  }
+
+  if (typeof error?.message === 'string') {
+    return error.message;
+  }
+
+  return 'An unexpected error occurred. Please try again.';
+};
+
+const slugify = (value: string, fallback = 'template') => {
+  const base = value?.toString().trim().toLowerCase() || fallback;
+  const slug = base
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return slug || fallback;
+};
+
+const buildSectionKey = (title: string | undefined, index: number) => {
+  if (!title?.trim()) {
+    return `section_${index + 1}`;
+  }
+  return slugify(title, `section_${index + 1}`);
+};
+
+const buildPayloadFromBuilder = (templateDraft: any, existingTemplate?: AppraisalTemplate | null) => {
+  // Handle both direct sections and sections from configJson
+  const sections = Array.isArray(templateDraft.sections) 
+    ? templateDraft.sections 
+    : Array.isArray(templateDraft.configJson?.sections)
+      ? templateDraft.configJson.sections
+      : [];
+  const normalizedSections = sections.map((section: any, index: number) => ({
+    id: section.id || `section-${index}`,
+    title: section.title || `Section ${index + 1}`,
+    description: section.description || '',
+    weight: Number(section.weight) || 0,
+    type: section.type || 'custom',
+    questions: Array.isArray(section.questions) ? section.questions : [],
+    order: index,
+  }));
+
+  const totalWeight = normalizedSections.reduce(
+    (sum: number, section: { weight?: number }) => sum + (section.weight || 0),
+    0,
+  );
+  const denominators: Record<string, number> = {};
+  const weights: Record<string, number> = {};
+  const maxScores: Record<string, number> = {};
+
+  // Ensure we always have valid weights that sum to 1
+  if (normalizedSections.length === 0) {
+    // If no sections, create a default weight structure
+    weights['default'] = 1;
+    denominators['default'] = 100;
+    maxScores['default'] = 100;
+  } else {
+    normalizedSections.forEach((section: { title?: string; weight?: number }, index: number) => {
+      const key = buildSectionKey(section.title, index);
+      // Calculate normalized weight: if totalWeight > 0, use proportional; otherwise distribute equally
+      let normalizedWeight: number;
+      if (totalWeight > 0 && (section.weight || 0) > 0) {
+        normalizedWeight = (section.weight || 0) / totalWeight;
+      } else {
+        // If all weights are 0 or totalWeight is 0, distribute equally
+        normalizedWeight = 1 / normalizedSections.length;
+      }
+
+      weights[key] = Number(normalizedWeight.toFixed(4));
+      denominators[key] = 100;
+      maxScores[key] = 100;
+    });
+    
+    // Ensure weights sum to exactly 1 (fix any floating point issues)
+    const currentSum = Object.values(weights).reduce((sum, w) => sum + w, 0);
+    if (Object.keys(weights).length > 0) {
+      // Normalize to ensure sum is exactly 1
+      if (Math.abs(currentSum - 1) > 0.0001) {
+        // If sum is not 1, adjust the first weight to make it sum to 1
+        const weightKeys = Object.keys(weights);
+        if (weightKeys.length > 0) {
+          const firstKey = weightKeys[0];
+          const otherWeightsSum = weightKeys.slice(1).reduce((sum, k) => sum + weights[k], 0);
+          weights[firstKey] = Math.max(0, Number((1 - otherWeightsSum).toFixed(4)));
+        }
+      }
+      
+      // Final check and normalization if needed
+      const finalSum = Object.values(weights).reduce((sum, w) => sum + w, 0);
+      if (Math.abs(finalSum - 1) > 0.0001 && Object.keys(weights).length > 0) {
+        // Normalize all weights proportionally to ensure they sum to 1
+        const normalizationFactor = 1 / finalSum;
+        Object.keys(weights).forEach(key => {
+          weights[key] = Number((weights[key] * normalizationFactor).toFixed(4));
+        });
+        // Set the last weight to exactly 1 minus the sum of others to ensure perfect sum
+        const weightKeys = Object.keys(weights);
+        if (weightKeys.length > 1) {
+          const lastKey = weightKeys[weightKeys.length - 1];
+          const othersSum = weightKeys.slice(0, -1).reduce((sum, k) => sum + weights[k], 0);
+          weights[lastKey] = Number((1 - othersSum).toFixed(4));
+        }
+      }
+    }
+  }
+
+  const typeValue = TEMPLATE_TYPE_OPTIONS.some((option) => option.value === templateDraft.type)
+    ? templateDraft.type
+    : 'GENERAL_STAFF';
+
+  const existingConfig = existingTemplate ? parseConfigJson(existingTemplate.configJson) : null;
+  const existingMetadata = (existingConfig?.metadata as Record<string, any>) || {};
+  const trimValue = (value: any) => (typeof value === 'string' ? value.trim() : undefined);
+
+  const metadataDescription =
+    trimValue(templateDraft.description) ?? trimValue(existingMetadata.description) ?? '';
+  const metadataVersion =
+    trimValue(templateDraft.version) ?? trimValue(existingMetadata.version) ?? existingTemplate?.version ?? '1.0';
+  const displayNameValue =
+    trimValue(templateDraft.displayName) ??
+    trimValue(existingMetadata.displayName) ??
+    trimValue(existingTemplate?.displayName) ??
+    trimValue(templateDraft.name) ??
+    'Untitled Template';
+
+  const metadata = {
+    ...existingMetadata,
+    description: metadataDescription,
+    version: metadataVersion,
+    displayName: displayNameValue,
+  };
+
+  const baseConfig =
+    normalizedSections.length > 0
+      ? {
+          denominators,
+          weights,
+          maxScores,
+          metadata,
+          sections: normalizedSections,
+        }
+      : {
+          ...getDefaultScoringConfig(typeValue),
+          metadata,
+          sections: normalizedSections,
+        };
+
+  const normalizedScoring = ensureWeightsSumToOne({
+    denominators: baseConfig.denominators,
+    weights: baseConfig.weights,
+    maxScores: baseConfig.maxScores,
+  } as ScoringConfig);
+
+  const normalizedConfig = {
+    ...baseConfig,
+    denominators: normalizedScoring.denominators,
+    weights: normalizedScoring.weights,
+    maxScores: normalizedScoring.maxScores,
+  };
+
+  const trimmedName = trimValue(templateDraft.name);
+  const name = existingTemplate?.id
+    ? trimmedName || existingTemplate.name
+    : slugify(trimmedName || displayNameValue, 'appraisal-template');
+
+  const version = metadata.version || '1.0';
+  const description = metadata.description || '';
+
+  return {
+    name,
+    displayName: displayNameValue,
+    type: typeValue,
+    version,
+    description,
+    configJson: normalizedConfig,
+    templateStructure: {
+      sections: normalizedSections,
+    },
+    weighting: normalizedConfig.weights,
+    published: existingTemplate?.published ?? templateDraft.published ?? false,
+    active: existingTemplate?.active ?? templateDraft.active ?? true,
+  };
+};
+
 export function AppraisalTemplatesPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
@@ -45,8 +393,10 @@ export function AppraisalTemplatesPage() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isAnalyticsDialogOpen, setIsAnalyticsDialogOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<AppraisalTemplate | null>(null);
+  const [builderTemplate, setBuilderTemplate] = useState<AppraisalTemplate | null>(null);
 
   const queryClient = useQueryClient();
+  const { addToast } = useToast();
 
   // Fetch templates
   const { data: templates, isLoading, error } = useQuery({
@@ -57,26 +407,130 @@ export function AppraisalTemplatesPage() {
     },
   });
 
+  const availableTypeOptions = useMemo(() => {
+    const typeMap = new Map<string, string>();
+    TEMPLATE_TYPE_OPTIONS.forEach((option) => typeMap.set(option.value, option.label));
+
+    (templates || []).forEach((template: any) => {
+      if (template?.type && !typeMap.has(template.type)) {
+        typeMap.set(template.type, formatTemplateTypeLabel(template.type));
+      }
+    });
+
+    return Array.from(typeMap.entries()).map(([value, label]) => ({ value, label }));
+  }, [templates]);
+
+  useEffect(() => {
+    if (filterType !== 'all' && !availableTypeOptions.some((option) => option.value === filterType)) {
+      setFilterType('all');
+    }
+  }, [filterType, availableTypeOptions]);
+
   // Delete template mutation
   const deleteTemplateMutation = useMutation({
     mutationFn: (id: string) => templatesApi.delete(id),
     onSuccess: () => {
+      addToast({
+        title: 'Template deleted',
+        description: 'The template has been removed successfully.',
+        type: 'success',
+      });
       queryClient.invalidateQueries({ queryKey: ['templates'] });
+    },
+    onError: (mutationError) => {
+      addToast({
+        title: 'Failed to delete template',
+        description: extractErrorMessage(mutationError),
+        type: 'error',
+      });
+    },
+  });
+
+  const builderCreateMutation = useMutation({
+    mutationFn: (data: any) => templatesApi.create(data),
+    onSuccess: (_response, variables) => {
+      addToast({
+        title: 'Template saved',
+        description: `${variables.displayName || variables.name} has been saved successfully.`,
+        type: 'success',
+      });
+      setBuilderTemplate(null);
+      setIsBuilderDialogOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['templates'] });
+    },
+    onError: (mutationError) => {
+      addToast({
+        title: 'Failed to save template',
+        description: extractErrorMessage(mutationError),
+        type: 'error',
+      });
+    },
+  });
+
+  const builderUpdateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) => {
+      console.log('Updating template with payload:', JSON.stringify(data, null, 2));
+      // Validate payload structure before sending
+      if (data.configJson) {
+        const configJson = data.configJson;
+        if (configJson.weights) {
+          const weightsSum = Object.values(configJson.weights).reduce((sum: number, w: any) => sum + (typeof w === 'number' ? w : 0), 0);
+          console.log('Weights sum:', weightsSum, 'Weights:', configJson.weights);
+        }
+        if (configJson.sections) {
+          console.log('Sections count:', configJson.sections.length);
+        }
+      }
+      return templatesApi.update(id, data);
+    },
+    onSuccess: (_response, variables) => {
+      addToast({
+        title: 'Template updated',
+        description: `${variables.data.displayName || variables.data.name} has been updated successfully.`,
+        type: 'success',
+      });
+      setBuilderTemplate(null);
+      setIsBuilderDialogOpen(false);
+      setIsEditDialogOpen(false);
+      setEditingTemplate(null);
+      queryClient.invalidateQueries({ queryKey: ['templates'] });
+    },
+    onError: (mutationError: any) => {
+      console.error('Template update error:', mutationError);
+      console.error('Error details:', {
+        message: mutationError?.message,
+        response: (mutationError as any)?.response?.data,
+        status: (mutationError as any)?.response?.status,
+      });
+      const errorMessage = extractErrorMessage(mutationError);
+      addToast({
+        title: 'Failed to update template',
+        description: errorMessage || 'An unexpected error occurred. Please check the console for details.',
+        type: 'error',
+        duration: 7000,
+      });
     },
   });
 
 
   // Filter templates
-  const filteredTemplates = (templates || []).filter((template: any) => {
-    const matchesSearch = template.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         template.displayName.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesType = filterType === 'all' || template.type === filterType;
-    const matchesStatus = filterStatus === 'all' || 
-                         (filterStatus === 'active' && template.active) ||
-                         (filterStatus === 'inactive' && !template.active);
-    
-    return matchesSearch && matchesType && matchesStatus;
-  });
+  const filteredTemplates = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    return (templates || []).filter((template: any) => {
+      const nameMatches = template.name?.toLowerCase().includes(term);
+      const displayMatches = template.displayName?.toLowerCase().includes(term);
+      const descriptionMatches = template.description?.toLowerCase().includes(term);
+      const matchesSearch = term.length === 0 || nameMatches || displayMatches || descriptionMatches;
+
+      const matchesType = filterType === 'all' || template.type === filterType;
+      const matchesStatus =
+        filterStatus === 'all' ||
+        (filterStatus === 'active' && template.active) ||
+        (filterStatus === 'inactive' && !template.active);
+
+      return matchesSearch && matchesType && matchesStatus;
+    });
+  }, [templates, searchTerm, filterType, filterStatus]);
 
   const handleDeleteTemplate = (id: string) => {
     if (window.confirm('Are you sure you want to delete this template?')) {
@@ -92,18 +546,30 @@ export function AppraisalTemplatesPage() {
 
   const handleDuplicateTemplate = async (template: AppraisalTemplate) => {
     try {
-      await templatesApi.create({
-        name: `${template.name}-copy`,
-        displayName: `${template.displayName} (Copy)`,
+      const config = parseConfigJson(template.configJson) || getDefaultScoringConfig(template.type);
+      const payload = {
+        name: `${slugify(template.name || template.displayName || 'template')}-copy`,
+        displayName: `${template.displayName || template.name} (Copy)`,
         type: template.type,
-        version: '1.0',
-        configJson: template.configJson || {},
+        version: template.version || '1.0',
+        configJson: ensureWeightsSumToOne(config as ScoringConfig),
         published: false,
-        active: true
+        active: true,
+      };
+
+      await templatesApi.create(payload);
+      addToast({
+        title: 'Template duplicated',
+        description: `${template.displayName || template.name} has been duplicated successfully.`,
+        type: 'success',
       });
       queryClient.invalidateQueries({ queryKey: ['templates'] });
-    } catch (error) {
-      console.error('Error duplicating template:', error);
+    } catch (duplicationError) {
+      addToast({
+        title: 'Failed to duplicate template',
+        description: extractErrorMessage(duplicationError),
+        type: 'error',
+      });
     }
   };
 
@@ -112,21 +578,65 @@ export function AppraisalTemplatesPage() {
     setIsEditDialogOpen(true);
   };
 
+  const handleOpenBuilderForEdit = (template: AppraisalTemplate) => {
+    setEditingTemplate(template);
+    setBuilderTemplate(template);
+    setIsEditDialogOpen(false);
+    setIsBuilderDialogOpen(true);
+  };
+
+  const handleBuilderSave = (templateDraft: any) => {
+    const payload = buildPayloadFromBuilder(templateDraft, builderTemplate);
+
+    if (builderTemplate?.id) {
+      builderUpdateMutation.mutate({ id: builderTemplate.id, data: payload });
+    } else {
+      builderCreateMutation.mutate(payload);
+    }
+  };
+
+  const handleBuilderCancel = () => {
+    const wasEditingExisting = Boolean(builderTemplate?.id);
+    setIsBuilderDialogOpen(false);
+    setBuilderTemplate(null);
+    if (wasEditingExisting) {
+      setIsEditDialogOpen(true);
+    }
+  };
+
   const handlePublishTemplate = async (template: AppraisalTemplate) => {
     try {
       await templatesApi.update(template.id, { published: !template.published });
+      addToast({
+        title: template.published ? 'Template unpublished' : 'Template published',
+        description: `${template.displayName || template.name} is now ${template.published ? 'unpublished' : 'published'}.`,
+        type: 'success',
+      });
       queryClient.invalidateQueries({ queryKey: ['templates'] });
     } catch (error) {
-      console.error('Error publishing template:', error);
+      addToast({
+        title: 'Failed to update publish status',
+        description: extractErrorMessage(error),
+        type: 'error',
+      });
     }
   };
 
   const handleArchiveTemplate = async (template: AppraisalTemplate) => {
     try {
       await templatesApi.update(template.id, { active: false });
+      addToast({
+        title: 'Template archived',
+        description: `${template.displayName || template.name} has been archived.`,
+        type: 'success',
+      });
       queryClient.invalidateQueries({ queryKey: ['templates'] });
     } catch (error) {
-      console.error('Error archiving template:', error);
+      addToast({
+        title: 'Failed to archive template',
+        description: extractErrorMessage(error),
+        type: 'error',
+      });
     }
   };
 
@@ -190,6 +700,7 @@ export function AppraisalTemplatesPage() {
                       </DialogDescription>
                     </DialogHeader>
                     <TemplateForm 
+                      typeOptions={availableTypeOptions}
                       onSuccess={() => {
                         setIsCreateDialogOpen(false);
                         queryClient.invalidateQueries({ queryKey: ['templates'] });
@@ -199,28 +710,48 @@ export function AppraisalTemplatesPage() {
                   </DialogContent>
                 </Dialog>
 
-                <Dialog open={isBuilderDialogOpen} onOpenChange={setIsBuilderDialogOpen}>
+                <Dialog
+                  open={isBuilderDialogOpen}
+                  onOpenChange={(open) => {
+                    if (!open) {
+                      const wasEditingExisting = Boolean(builderTemplate?.id);
+                      setIsBuilderDialogOpen(open);
+                      setBuilderTemplate(null);
+                      if (wasEditingExisting) {
+                        setIsEditDialogOpen(true);
+                      }
+                    } else {
+                      setIsBuilderDialogOpen(open);
+                    }
+                  }}
+                >
                   <DialogTrigger asChild>
-                    <Button variant="outline">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setBuilderTemplate(null);
+                      }}
+                    >
                       <Settings className="w-4 h-4 mr-2" />
                       Template Builder
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto bg-white border-2 border-gray-300 shadow-2xl">
                     <DialogHeader className="bg-gray-50 px-4 py-3 rounded-t-lg border-b">
-                      <DialogTitle className="text-xl font-bold text-gray-900">Advanced Template Builder</DialogTitle>
+                      <DialogTitle className="text-xl font-bold text-gray-900">
+                        {builderTemplate ? 'Edit Template Structure' : 'Advanced Template Builder'}
+                      </DialogTitle>
                       <DialogDescription className="text-gray-600">
-                        Create complex appraisal templates with custom sections and questions
+                        {builderTemplate
+                          ? 'Update sections and questions for this appraisal template.'
+                          : 'Create complex appraisal templates with custom sections and questions'}
                       </DialogDescription>
                     </DialogHeader>
                     <TemplateBuilder
-                      onSave={(template) => {
-                        // Handle template save
-                        console.log('Saving template:', template);
-                        setIsBuilderDialogOpen(false);
-                        queryClient.invalidateQueries({ queryKey: ['templates'] });
-                      }}
-                      onCancel={() => setIsBuilderDialogOpen(false)}
+                      template={builderTemplate || undefined}
+                      onSave={handleBuilderSave}
+                      onCancel={handleBuilderCancel}
+                      isSaving={builderCreateMutation.isPending || builderUpdateMutation.isPending}
                     />
                   </DialogContent>
                 </Dialog>
@@ -327,11 +858,11 @@ export function AppraisalTemplatesPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Types</SelectItem>
-                      <SelectItem value="FACULTY">Faculty</SelectItem>
-                      <SelectItem value="STAFF">Staff</SelectItem>
-                      <SelectItem value="DEAN">Dean</SelectItem>
-                      <SelectItem value="CLINICAL_INSTRUCTOR">Clinical Instructor</SelectItem>
-                      <SelectItem value="EXECUTIVE_MANAGEMENT">Executive Management</SelectItem>
+                      {availableTypeOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   
@@ -359,7 +890,7 @@ export function AppraisalTemplatesPage() {
                     <div>
                       <CardTitle className="text-lg">{template.displayName || template.name}</CardTitle>
                       <CardDescription className="mt-1">
-                        {template.type} • Version {template.version}
+                        {getTemplateTypeLabel(template.type)} • Version {template.version || '1.0'}
                       </CardDescription>
                     </div>
                     <div className="flex gap-2">
@@ -504,6 +1035,7 @@ export function AppraisalTemplatesPage() {
             {editingTemplate && (
               <TemplateForm 
                 template={editingTemplate}
+                typeOptions={availableTypeOptions}
                 onSuccess={() => {
                   setIsEditDialogOpen(false);
                   setEditingTemplate(null);
@@ -512,6 +1044,11 @@ export function AppraisalTemplatesPage() {
                 onCancel={() => {
                   setIsEditDialogOpen(false);
                   setEditingTemplate(null);
+                }}
+                onEditStructure={() => {
+                  if (editingTemplate) {
+                    handleOpenBuilderForEdit(editingTemplate);
+                  }
                 }}
               />
             )}
@@ -538,50 +1075,139 @@ export function AppraisalTemplatesPage() {
 }
 
 // Template Form Component
-function TemplateForm({ 
-  template, 
-  onSuccess, 
-  onCancel 
-}: { 
-  template?: AppraisalTemplate; 
-  onSuccess: () => void; 
-  onCancel: () => void; 
+function TemplateForm({
+  template,
+  onSuccess,
+  onCancel,
+  onEditStructure,
+  typeOptions,
+}: {
+  template?: AppraisalTemplate;
+  onSuccess: () => void;
+  onCancel: () => void;
+  onEditStructure?: () => void;
+  typeOptions?: { value: string; label: string }[];
 }) {
-  const [formData, setFormData] = useState({
-    name: template?.name || '',
-    displayName: template?.displayName || '',
-    type: template?.type || 'FACULTY',
-    version: template?.version || '1.0',
-    description: template?.description || '',
-  });
+  const { addToast } = useToast();
+  const parsedConfig = useMemo(() => parseConfigJson(template?.configJson), [template?.configJson]);
+
+  const effectiveTypeOptions = useMemo(() => {
+    const options = typeOptions && typeOptions.length > 0 ? [...typeOptions] : [...TEMPLATE_TYPE_OPTIONS];
+    if (template?.type && !options.some((option) => option.value === template.type)) {
+      options.push({
+        value: template.type,
+        label: formatTemplateTypeLabel(template.type),
+      });
+    }
+    return options;
+  }, [typeOptions, template?.type]);
+
+  const resolvedType = useMemo(() => {
+    if (template?.type && effectiveTypeOptions.some((option) => option.value === template.type)) {
+      return template.type;
+    }
+    return 'GENERAL_STAFF';
+  }, [template?.type, effectiveTypeOptions]);
+
+  const initialFormState = useMemo(
+    () => ({
+      name: template?.name || '',
+      displayName: template?.displayName || '',
+      type: resolvedType,
+      version: template?.version || '1.0',
+      description:
+        parsedConfig?.metadata?.description ||
+        template?.description ||
+        '',
+    }),
+    [template?.name, template?.displayName, template?.version, template?.description, resolvedType, parsedConfig?.metadata?.description],
+  );
+
+  const [formData, setFormData] = useState(initialFormState);
+
+  useEffect(() => {
+    setFormData(initialFormState);
+  }, [initialFormState]);
 
   const createTemplateMutation = useMutation({
     mutationFn: (data: any) => templatesApi.create(data),
     onSuccess: () => {
+      addToast({
+        title: 'Template created',
+        description: `${formData.displayName || formData.name} has been created successfully.`,
+        type: 'success',
+      });
       onSuccess();
+    },
+    onError: (error) => {
+      addToast({
+        title: 'Failed to create template',
+        description: extractErrorMessage(error),
+        type: 'error',
+      });
     },
   });
 
   const updateTemplateMutation = useMutation({
     mutationFn: (data: any) => templatesApi.update(template!.id, data),
     onSuccess: () => {
+      addToast({
+        title: 'Template updated',
+        description: `${formData.displayName || formData.name} has been updated successfully.`,
+        type: 'success',
+      });
       onSuccess();
+    },
+    onError: (error) => {
+      addToast({
+        title: 'Failed to update template',
+        description: extractErrorMessage(error),
+        type: 'error',
+      });
     },
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const templateData = {
-      ...formData,
-      configJson: template?.configJson || {},
+
+    if (!formData.name.trim() || !formData.displayName.trim()) {
+      addToast({
+        title: 'Missing details',
+        description: 'Please provide both a template name and display name.',
+        type: 'error',
+      });
+      return;
+    }
+
+    const baseConfig = parsedConfig && parsedConfig.denominators && parsedConfig.weights && parsedConfig.maxScores
+      ? parsedConfig
+      : getDefaultScoringConfig(formData.type);
+
+    const configClone = JSON.parse(JSON.stringify(baseConfig));
+    const configWithMetadata = {
+      ...configClone,
+      metadata: {
+        ...(configClone.metadata || {}),
+        description: formData.description,
+        version: formData.version,
+        displayName: formData.displayName,
+      },
+    };
+
+    const payload = {
+      name: formData.name.trim(),
+      displayName: formData.displayName.trim(),
+      type: formData.type,
+      version: formData.version,
+      configJson: ensureWeightsSumToOne(configWithMetadata as ScoringConfig),
       published: template?.published || false,
       active: template?.active !== false,
     };
 
     if (template) {
-      updateTemplateMutation.mutate(templateData);
+      updateTemplateMutation.mutate(payload);
     } else {
-      createTemplateMutation.mutate(templateData);
+      createTemplateMutation.mutate(payload);
     }
   };
 
@@ -616,11 +1242,11 @@ function TemplateForm({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="FACULTY">Faculty</SelectItem>
-              <SelectItem value="STAFF">Staff</SelectItem>
-              <SelectItem value="DEAN">Dean</SelectItem>
-              <SelectItem value="CLINICAL_INSTRUCTOR">Clinical Instructor</SelectItem>
-              <SelectItem value="EXECUTIVE_MANAGEMENT">Executive Management</SelectItem>
+              {effectiveTypeOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -645,6 +1271,14 @@ function TemplateForm({
         />
       </div>
       
+      {template && onEditStructure && (
+        <div className="pt-2 border-t border-gray-200">
+          <Button type="button" variant="outline" onClick={onEditStructure}>
+            Edit Template Structure
+          </Button>
+        </div>
+      )}
+
       <div className="flex justify-end gap-4 pt-4">
         <Button type="button" variant="outline" onClick={onCancel}>
           Cancel
